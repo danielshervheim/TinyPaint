@@ -153,6 +153,9 @@ void editor_window_quit(EditorWindow *self) {
         editor_window_save(self);
     }
 
+    // destroy the editor
+    image_editor_destroy(&(self->m_editor));
+
     // then finally destroy this instance
     gtk_widget_destroy(GTK_WIDGET(self));
 }
