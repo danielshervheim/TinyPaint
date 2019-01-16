@@ -63,6 +63,10 @@ typedef struct threshold_params {
     double cutoff;
 } ThresholdParams;
 
-void apply_filter_to_pixelbuffer(FilterType type, void *params, PixelBuffer *buffer);
+/* Applies a basic filter to the input buffer. */
+void apply_basic_filter_to_pixelbuffer(FilterType type, void *params, PixelBuffer *buffer);
+
+/* Applies a convolution filter to the input buffer. */
+void apply_convolution_filter_to_pixelbuffer(FilterType type, void *params, PixelBuffer *buffer);
 
 #endif  // FILTER_H_

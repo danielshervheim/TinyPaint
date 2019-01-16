@@ -7,6 +7,7 @@
 #include "image_editor.h"
 
 #include "lodepng.h"
+#include "filter.h"
 #include "utilities.h"
 
 #include <math.h>  // pow, sqrt
@@ -216,41 +217,59 @@ void image_editor_redo(ImageEditor *self) {
 
 // todo: within these functions, make sure the first thing is calling history_update
 void image_editor_apply_saturation_filter(ImageEditor *self, double scale) {
-    printf("image_editor_apply_saturation_filter\n");
+    image_editor_history_update(self);
+    SaturationParams params = {scale};
+    apply_basic_filter_to_pixelbuffer(SATURATION, (void *)(&params), image_editor_get_current_pixelbuffer(self));
 }
 
 void image_editor_apply_channels_filter(ImageEditor *self, double r, double g, double b) {
-    printf("image_editor_apply_channels_filter\n");
+    image_editor_history_update(self);
+    ChannelsParams params = {r, g, b};
+    apply_basic_filter_to_pixelbuffer(CHANNELS, (void *)(&params), image_editor_get_current_pixelbuffer(self));
 }
 
 void image_editor_apply_invert_filter(ImageEditor *self) {
-    printf("image_editor_apply_invert_filter\n");
+    image_editor_history_update(self);
+    apply_basic_filter_to_pixelbuffer(INVERT, NULL, image_editor_get_current_pixelbuffer(self));
 }
 
 void image_editor_apply_brightness_contrast_filter(ImageEditor *self, double brightness, double contrast) {
-    printf("image_editor_apply_brightness_contrast_filter\n");
+    image_editor_history_update(self);
+    BrightnessContrastParams params = {brightness, contrast};
+    apply_basic_filter_to_pixelbuffer(BRIGHTNESSCONTRAST, (void *)(&params), image_editor_get_current_pixelbuffer(self));
 }
 
 void image_editor_apply_gaussian_blur_filter(ImageEditor *self, int radius) {
-    printf("image_editor_apply_gaussian_blur_filter\n");
+    image_editor_history_update(self);
+    GaussianBlurParams params = {radius};
+    apply_convolution_filter_to_pixelbuffer(GAUSSIANBLUR, (void *)(&params), image_editor_get_current_pixelbuffer(self));
 }
 
 void image_editor_apply_motion_blur_filter(ImageEditor *self, int radius, double angle) {
-    printf("image_editor_apply_motion_blur_filter\n");
+    image_editor_history_update(self);
+    MotionBlurParams params = {radius, angle};
+    apply_convolution_filter_to_pixelbuffer(MOTIONBLUR, (void *)(&params), image_editor_get_current_pixelbuffer(self));
 }
 
 void image_editor_apply_sharpen_filter(ImageEditor *self, int radius) {
-    printf("image_editor_apply_sharpen_filter\n");
+    image_editor_history_update(self);
+    SharpenParams params = {radius};
+    apply_convolution_filter_to_pixelbuffer(SHARPEN, (void *)(&params), image_editor_get_current_pixelbuffer(self));
 }
 
 void image_editor_apply_edge_detect_filter(ImageEditor *self) {
-    printf("image_editor_apply_edge_detect_filter\n");
+    image_editor_history_update(self);
+    apply_convolution_filter_to_pixelbuffer(EDGEDETECT, NULL, image_editor_get_current_pixelbuffer(self));
 }
 
 void image_editor_apply_posterize_filter(ImageEditor *self, int numBins) {
-    printf("image_editor_apply_posterize_filter\n");
+    image_editor_history_update(self);
+    PosterizeParams params = {numBins};
+    apply_basic_filter_to_pixelbuffer(POSTERIZE, (void *)(&params), image_editor_get_current_pixelbuffer(self));
 }
 
 void image_editor_apply_threshold_filter(ImageEditor *self, double cutoff) {
-    printf("image_editor_apply_threshold_filter\n");
+    image_editor_history_update(self);
+    ThresholdParams params = {cutoff};
+    apply_basic_filter_to_pixelbuffer(THRESHOLD, (void *)(&params), image_editor_get_current_pixelbuffer(self));
 }

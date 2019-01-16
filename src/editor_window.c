@@ -307,6 +307,7 @@ void apply_saturation_filter(EditorWindow *self) {
     // run the dialog
     if (gtk_dialog_run(saturationDialog) == GTK_RESPONSE_APPLY) {
         image_editor_apply_saturation_filter(&(self->m_editor), gtk_adjustment_get_value(saturationScale));
+        editor_window_canvas_refresh(self);
     }
 
     // destroy the dialog widget
@@ -330,6 +331,7 @@ void apply_channels_filter(EditorWindow *self) {
     if (gtk_dialog_run(channelsDialog) == GTK_RESPONSE_APPLY) {
         image_editor_apply_channels_filter(&(self->m_editor), gtk_adjustment_get_value(rScale),
             gtk_adjustment_get_value(gScale), gtk_adjustment_get_value(bScale));
+            editor_window_canvas_refresh(self);
     }
 
     // destroy the dialog widget
@@ -352,6 +354,7 @@ void apply_brightness_contrast_filter(EditorWindow *self) {
     if (gtk_dialog_run(brightnessContrastDialog) == GTK_RESPONSE_APPLY) {
         image_editor_apply_brightness_contrast_filter(&(self->m_editor),
             gtk_adjustment_get_value(brightnessScale), gtk_adjustment_get_value(contrastScale));
+            editor_window_canvas_refresh(self);
     }
 
     // destroy the dialog widget
@@ -372,6 +375,7 @@ void apply_gaussian_blur_filter(EditorWindow *self) {
     // run the dialog
     if (gtk_dialog_run(gaussianBlurDialog) == GTK_RESPONSE_APPLY) {
         image_editor_apply_gaussian_blur_filter(&(self->m_editor), (int)gtk_adjustment_get_value(gaussianBlurRadius));
+        editor_window_canvas_refresh(self);
     }
 
     // destroy the dialog widget
@@ -395,6 +399,7 @@ void apply_motion_blur_filter(EditorWindow *self) {
         image_editor_apply_motion_blur_filter(&(self->m_editor),
             (int)gtk_adjustment_get_value(motionBlurRadius),
             (int)gtk_adjustment_get_value(motionBlurAngle));
+            editor_window_canvas_refresh(self);
     }
 
     // destroy the dialog widget
@@ -415,6 +420,7 @@ void apply_sharpen_filter(EditorWindow *self) {
     // run the dialog
     if (gtk_dialog_run(sharpenDialog) == GTK_RESPONSE_APPLY) {
         image_editor_apply_sharpen_filter(&(self->m_editor), (int)gtk_adjustment_get_value(sharpenRadius));
+        editor_window_canvas_refresh(self);
     }
 
     // destroy the dialog widget
@@ -435,6 +441,7 @@ void apply_posterize_filter(EditorWindow *self) {
     // run the dialog
     if (gtk_dialog_run(posterizeDialog) == GTK_RESPONSE_APPLY) {
         image_editor_apply_posterize_filter(&(self->m_editor), (int)gtk_adjustment_get_value(posterizeBins));
+        editor_window_canvas_refresh(self);
     }
 
     // destroy the dialog widget
@@ -455,6 +462,7 @@ void apply_threshold_filter(EditorWindow *self) {
     // run the dialog
     if (gtk_dialog_run(thresholdDialog) == GTK_RESPONSE_APPLY) {
         image_editor_apply_threshold_filter(&(self->m_editor), gtk_adjustment_get_value(thresholdCutoff));
+        editor_window_canvas_refresh(self);
     }
 
     // destroy the dialog widget
