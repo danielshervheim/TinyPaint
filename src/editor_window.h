@@ -23,7 +23,7 @@ G_DECLARE_FINAL_TYPE(EditorWindow, editor_window, EDITOR_WINDOW, WINDOW, GtkWind
 EditorWindow* editor_window_new(void);
 
 /* Initializes an EditorWindow instance from a set of parameters. */
-void editor_window_canvas_init_from_parameters(EditorWindow *self, int width, int height, GdkRGBA backgroundColor
+void editor_window_canvas_init_from_parameters(EditorWindow *self, int width, int height, GdkRGBA backgroundColor);
 
 /* Initializes an EditorWindow instance from a filepath. */
 void editor_window_canvas_init_from_file(EditorWindow *self, const char *filepath);
