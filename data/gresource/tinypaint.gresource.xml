@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gresources>
+	<gresource prefix="/tinypaint/icons">
+		<file>icons8-chisel-tip-marker-16.png</file>
+		<file>icons8-eraser-16.png</file>
+		<file>icons8-fill-color-16.png</file>
+		<file>icons8-line-width-16.png</file>
+		<file>icons8-paint-16.png</file>
+		<file>icons8-paint-sprayer-16.png</file>
+		<file>icons8-pencil-16.png</file>
+	</gresource>
+	<gresource prefix="/tinypaint/ui">
+		<file>new_image_dialog.glade</file>
+		<file>tools_window.glade</file>
+		<file>editor_window.glade</file>
+		<file>io_dialogs.glade</file>
+		<file>filter_dialogs.glade</file>
+	</gresource>
+</gresources>
