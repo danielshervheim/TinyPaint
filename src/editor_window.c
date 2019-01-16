@@ -18,22 +18,21 @@
 #include <GL/gl.h>  // openGL headers
 #include <math.h>  // pow(), sqrt()
 
+
+#include "image_editor.h"
+
 struct _EditorWindow {
     GtkWindow parent_instance;
 
+    // the editor
+    ImageEditor m_editor;
+
     // instance properties
     ToolsWindow *m_tools_window;
-    Tool m_current_tool;
 
     // the canvas
     GtkGLArea *m_canvasGLArea;
 
-    // the history states
-    PixelBuffer m_historyUndoStates[MAX_HISTORY_STATES];  // todo: eventually put this number in a pref file
-    int m_historyUndo_i;
-
-    PixelBuffer m_historyRedoStates[MAX_HISTORY_STATES];
-    int m_historyRedo_i;
 
     unsigned int *m_renderBuffer;
 
@@ -43,7 +42,6 @@ struct _EditorWindow {
     int m_mousePosX_prev;
     int m_mousePosY_prev;
     int m_mouseDown;
-    double m_mouseDelta;
 };
 
 G_DEFINE_TYPE(EditorWindow, editor_window, GTK_TYPE_WINDOW);
@@ -68,9 +66,8 @@ void editor_window_canvas_render(EditorWindow *self, GdkGLContext *context) {
     glClearColor (0, 0, 0, 1);
     glClear (GL_COLOR_BUFFER_BIT);
 
-    // get a reference to the instances current PixelBuffer (this is just to save
-    // space when typing. you could just use the longhand "self->m_history....")
-    PixelBuffer *render = &(self->m_historyUndoStates[self->m_historyUndo_i]);
+
+    PixelBuffer *render = image_editor_get_current_pixelbuffer(&(self->m_editor));
 
     // update this instances renderBuffer based on the current PixelBuffer
     for (int y = 0; y < render->height; y++) {
@@ -92,78 +89,6 @@ void editor_window_canvas_render(EditorWindow *self, GdkGLContext *context) {
 /* Refreshes this instance's GL canvas (basically triggers the "render" signal) */
 void editor_window_canvas_refresh(EditorWindow *self) {
     gtk_gl_area_queue_render(self->m_canvasGLArea);
-}
-
-
-
-//
-// HISTORY methods
-//
-
-/* Replaces the current pixelbuffer with the previously saved one */
-void history_undo(EditorWindow *self) {
-    if (self->m_historyUndo_i > 0 && self->m_historyUndo_i < MAX_HISTORY_STATES) {
-        self->m_historyRedoStates[self->m_historyRedo_i] = self->m_historyUndoStates[self->m_historyUndo_i];
-        self->m_historyRedo_i++;
-        self->m_historyUndo_i--;
-    }
-    else {
-        // nothing to undo
-    }
-
-    editor_window_canvas_refresh(self);
-}
-
-/* Replaces the current pixelbuffer with the next-recent one */
-void history_redo(EditorWindow *self) {
-    if (self->m_historyRedo_i > 0 && self->m_historyRedo_i < MAX_HISTORY_STATES) {
-        self->m_historyRedo_i--;
-        self->m_historyUndo_i++;
-        self->m_historyUndoStates[self->m_historyUndo_i] = self->m_historyRedoStates[self->m_historyRedo_i];
-    }
-    else {
-        // nothing to redo
-    }
-
-    editor_window_canvas_refresh(self);
-}
-
-/* Clears one of the m_historyXXXStates arrays */
-void history_clear(PixelBuffer array[], int *index) {
-    // clear out the array
-    for (int i = 0; i < *index; i++) {
-        pixelbuffer_destroy(&array[i]);
-    }
-
-    // and set the index back to 0
-    *index = 0;
-}
-
-/* Copies the current pixelbuffer into the history array */
-void history_update(EditorWindow *self) {
-    // an update should "wipeout" any saved redo states, so
-    // clear the redo array
-    history_clear(self->m_historyRedoStates, &(self->m_historyRedo_i));
-
-    if (self->m_historyUndo_i == MAX_HISTORY_STATES - 1) {
-    	// destroy the oldest state
-        pixelbuffer_destroy(&(self->m_historyUndoStates[0]));
-
-        // shift remaining states down
-        for (int i = 1; i < MAX_HISTORY_STATES; i++) {
-            self->m_historyUndoStates[i-1] = self->m_historyUndoStates[i];
-        }
-
-        // decrement index accordingly
-        self->m_historyUndo_i--;
-    }
-
-    // otherwise, copy the current pixelbuffer, advance the index, and save the copy
-    PixelBuffer copy = pixelbuffer_copy(&(self->m_historyUndoStates[self->m_historyUndo_i]));
-    self->m_historyUndo_i++;
-    self->m_historyUndoStates[self->m_historyUndo_i] = copy;
-
-	editor_window_canvas_refresh(self);
 }
 
 
@@ -199,31 +124,8 @@ void editor_window_save(EditorWindow *self) {
         // destroy saveDialog widget
         gtk_widget_destroy(GTK_WIDGET(saveDialog));
 
-        // attempt to save file
-        int width = self->m_historyUndoStates[self->m_historyUndo_i].width;
-        int height = self->m_historyUndoStates[self->m_historyUndo_i].height;
-        unsigned char *tmp = malloc(4 * width * height);
-
-        // fill the char array with the current pixel buffer
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                GdkRGBA currentColor = pixelbuffer_get_pixel(&(self->m_historyUndoStates[self->m_historyUndo_i]), x, y);
-                int offset = (width * 4 * y) + (x*4);
-                memset(tmp + offset + 0, currentColor.red * 255, 1);
-                memset(tmp + offset + 1, currentColor.green * 255, 1);
-                memset(tmp + offset + 2, currentColor.blue * 255, 1);
-                memset(tmp + offset + 3, currentColor.alpha * 255, 1);
-            }
-        }
-
-        // attempt to encode with lodepng library
-        unsigned error = lodepng_encode32_file(filename_final, tmp, width, height);
-        if(error) {
-            printf("error %u: %s\n", error, lodepng_error_text(error));
-        }
-
-        // free the tmp buffer
-        free(tmp);
+        // and save the image
+        image_editor_save_current_pixelbuffer(&(self->m_editor), filename_final);
     }
     else {
         gtk_widget_destroy(GTK_WIDGET(saveDialog));
@@ -311,11 +213,13 @@ void editor_window_open_new() {
 int editor_window_keyPress(EditorWindow *self, GdkEventKey *event) {
     if (event->keyval == 122 && event->state == 20) {
         // (CTRL+Z) undo
-        history_undo(self);
+        image_editor_undo(&(self->m_editor));
+        editor_window_canvas_refresh(self);
     }
     else if (event->keyval == 90 && event->state == 21) {
         // (CTRL+LSHIFT+Z) redo
-        history_redo(self);
+        image_editor_redo(&(self->m_editor));
+        editor_window_canvas_refresh(self);
     }
     else if (event->keyval == 113 && event->state == 20) {
         // (CTRL+Q) quit
@@ -346,13 +250,7 @@ int editor_window_keyPress(EditorWindow *self, GdkEventKey *event) {
 
 /* Fires when the mouse is held down on the canvas */
 int canvas_mouseHold(EditorWindow *self) {
-    PixelBuffer current = self->m_historyUndoStates[self->m_historyUndo_i];
-    if (self->m_mousePosX >= 0 && self->m_mousePosX < current.width &&
-        self->m_mousePosY >= 0 && self->m_mousePosY < current.height) {
-        tool_apply_to_pixelbuffer(&(self->m_current_tool), &self->m_historyUndoStates[self->m_historyUndo_i],
-            self->m_mousePosX, self->m_mousePosY);
-    }
-
+    image_editor_stroke_hold(&(self->m_editor), self->m_mousePosX, self->m_mousePosY);
     editor_window_canvas_refresh(self);
     return self->m_mouseDown;
 }
@@ -365,27 +263,11 @@ void canvas_mouseMove(EditorWindow *self, GdkEventMotion *event) {
         self->m_mousePosY_prev = self->m_mousePosY;
         self->m_mousePosX = event->x;
         self->m_mousePosY = event->y;
-        self->m_mouseDelta = sqrt(pow(self->m_mousePosX - self->m_mousePosX_prev,
-            2.0) + pow(self->m_mousePosY - self->m_mousePosY_prev, 2.0));
 
-        if (!self->m_current_tool.isStamp) {
-            // stroke cont
-            PixelBuffer current = self->m_historyUndoStates[self->m_historyUndo_i];
-            int distance = (int)self->m_mouseDelta;
-            int stepSize = (1 - self->m_current_tool.fillRate) * (distance-1) + 1;
 
-            for (int i = 0; i < distance; i += stepSize) {
-                double progress = (i/(double)distance);
-                int x = (int)double_lerp(self->m_mousePosX_prev, self->m_mousePosX, progress);
-                int y = (int)double_lerp(self->m_mousePosY_prev, self->m_mousePosY, progress);
 
-                if (x >= 0 && x < current.width && y >= 0 && y < current.height) {
-                    tool_apply_to_pixelbuffer(&(self->m_current_tool), &(self->m_historyUndoStates[self->m_historyUndo_i]), x, y);
-                }
-            }
-
-            editor_window_canvas_refresh(self);
-        }
+        image_editor_stroke_move(&(self->m_editor), self->m_mousePosX, self->m_mousePosY, self->m_mousePosX_prev, self->m_mousePosY_prev);
+        editor_window_canvas_refresh(self);
     }
 }
 
@@ -399,19 +281,12 @@ void canvas_mouseDown(EditorWindow *self, GdkEventMotion *event) {
     self->m_mousePosY_prev = self->m_mousePosY;
 
     // install the mouseHold polling function
-    if (self->m_current_tool.applyWhenStationary) {
+    if (self->m_editor.m_tool.applyWhenStationary) {
         g_timeout_add(MOUSE_HOLD_POLL_RATE_MS, (void *)canvas_mouseHold, self);
     }
 
-    // stroke start
-    history_update(self);
-    PixelBuffer current = self->m_historyUndoStates[self->m_historyUndo_i];
-    if (self->m_mousePosX >= 0 && self->m_mousePosX < current.width &&
-        self->m_mousePosY >= 0 && self->m_mousePosY < current.height) {
-        tool_apply_to_pixelbuffer(&(self->m_current_tool), &self->m_historyUndoStates[self->m_historyUndo_i],
-            self->m_mousePosX, self->m_mousePosY);
-        editor_window_canvas_refresh(self);
-    }
+    image_editor_stroke_start(&(self->m_editor), self->m_mousePosX, self->m_mousePosY);
+    editor_window_canvas_refresh(self);
 }
 
 /* Fires when the mouse is depressed on the canvas */
@@ -421,17 +296,12 @@ void canvas_mouseUp(EditorWindow *self, GdkEventMotion *event) {
     self->m_mousePosX = event->x;
     self->m_mousePosY = event->y;
 
-    if (!self->m_current_tool.isStamp) {
-        //stroke end
-        PixelBuffer current = self->m_historyUndoStates[self->m_historyUndo_i];
-        if (self->m_mousePosX >= 0 && self->m_mousePosX < current.width &&
-            self->m_mousePosY >= 0 && self->m_mousePosY < current.height) {
-            tool_apply_to_pixelbuffer(&(self->m_current_tool), &self->m_historyUndoStates[self->m_historyUndo_i],
-                self->m_mousePosX, self->m_mousePosY);
-        }
-        editor_window_canvas_refresh(self);
-    }
+    image_editor_stroke_end(&(self->m_editor), self->m_mousePosX, self->m_mousePosY);
+    editor_window_canvas_refresh(self);
 }
+
+
+
 
 
 
@@ -454,14 +324,7 @@ void apply_saturation_filter(EditorWindow *self) {
 
     // run the dialog
     if (gtk_dialog_run(saturationDialog) == GTK_RESPONSE_APPLY) {
-        // save a copy of the current buffer
-        history_update(self);
-
-        /// get the parameters
-        SaturationParams params = {gtk_adjustment_get_value(saturationScale)};
-
-        // and apply the filter
-        apply_filter_to_pixelbuffer(SATURATION, (void *)(&params), &(self->m_historyUndoStates[self->m_historyUndo_i]));
+        image_editor_apply_saturation_filter(&(self->m_editor), gtk_adjustment_get_value(saturationScale));
     }
 
     // destroy the dialog widget
@@ -483,14 +346,8 @@ void apply_channels_filter(EditorWindow *self) {
 
     // run the dialog
     if (gtk_dialog_run(channelsDialog) == GTK_RESPONSE_APPLY) {
-        // save a copy of the current buffer
-        history_update(self);
-
-        /// get the parameters
-        ChannelsParams params = {gtk_adjustment_get_value(rScale), gtk_adjustment_get_value(gScale), gtk_adjustment_get_value(bScale)};
-
-        // and apply the filter
-        apply_filter_to_pixelbuffer(CHANNELS, (void *)(&params), &(self->m_historyUndoStates[self->m_historyUndo_i]));
+        image_editor_apply_channels_filter(&(self->m_editor), gtk_adjustment_get_value(rScale),
+            gtk_adjustment_get_value(gScale), gtk_adjustment_get_value(bScale));
     }
 
     // destroy the dialog widget
@@ -511,14 +368,8 @@ void apply_brightness_contrast_filter(EditorWindow *self) {
 
     // run the dialog
     if (gtk_dialog_run(brightnessContrastDialog) == GTK_RESPONSE_APPLY) {
-        // save a copy of the current buffer
-        history_update(self);
-
-        /// get the parameters
-        BrightnessContrastParams params = {gtk_adjustment_get_value(brightnessScale), gtk_adjustment_get_value(contrastScale)};
-
-        // and apply the filter
-        apply_filter_to_pixelbuffer(BRIGHTNESSCONTRAST, (void *)(&params), &(self->m_historyUndoStates[self->m_historyUndo_i]));
+        image_editor_apply_brightness_contrast_filter(&(self->m_editor),
+            gtk_adjustment_get_value(brightnessScale), gtk_adjustment_get_value(contrastScale));
     }
 
     // destroy the dialog widget
@@ -526,12 +377,6 @@ void apply_brightness_contrast_filter(EditorWindow *self) {
 
     // unref the builder
     g_object_unref(builder);
-}
-
-void apply_invert_filter(EditorWindow *self) {
-    history_update(self);
-
-    apply_filter_to_pixelbuffer(INVERT, NULL, &(self->m_historyUndoStates[self->m_historyUndo_i]));
 }
 
 void apply_gaussian_blur_filter(EditorWindow *self) {
@@ -544,14 +389,7 @@ void apply_gaussian_blur_filter(EditorWindow *self) {
 
     // run the dialog
     if (gtk_dialog_run(gaussianBlurDialog) == GTK_RESPONSE_APPLY) {
-        // save a copy of the current buffer
-        history_update(self);
-
-        /// get the parameters
-        GaussianBlurParams params = {(int)gtk_adjustment_get_value(gaussianBlurRadius)};
-
-        // and apply the filter
-        apply_filter_to_pixelbuffer(GAUSSIANBLUR, (void *)(&params), &(self->m_historyUndoStates[self->m_historyUndo_i]));
+        image_editor_apply_gaussian_blur_filter(&(self->m_editor), (int)gtk_adjustment_get_value(gaussianBlurRadius));
     }
 
     // destroy the dialog widget
@@ -572,14 +410,9 @@ void apply_motion_blur_filter(EditorWindow *self) {
 
     // run the dialog
     if (gtk_dialog_run(motionBlurDialog) == GTK_RESPONSE_APPLY) {
-        // save a copy of the current buffer
-        history_update(self);
-
-        /// get the parameters
-        MotionBlurParams params = {(int)gtk_adjustment_get_value(motionBlurRadius), gtk_adjustment_get_value(motionBlurAngle)};
-
-        // and apply the filter
-        apply_filter_to_pixelbuffer(MOTIONBLUR, (void *)(&params), &(self->m_historyUndoStates[self->m_historyUndo_i]));
+        image_editor_apply_motion_blur_filter(&(self->m_editor),
+            (int)gtk_adjustment_get_value(motionBlurRadius),
+            (int)gtk_adjustment_get_value(motionBlurAngle));
     }
 
     // destroy the dialog widget
@@ -599,14 +432,7 @@ void apply_sharpen_filter(EditorWindow *self) {
 
     // run the dialog
     if (gtk_dialog_run(sharpenDialog) == GTK_RESPONSE_APPLY) {
-        // save a copy of the current buffer
-        history_update(self);
-
-        /// get the parameters
-        SharpenParams params = {(int)gtk_adjustment_get_value(sharpenRadius)};
-
-        // and apply the filter
-        apply_filter_to_pixelbuffer(SHARPEN, (void *)(&params), &(self->m_historyUndoStates[self->m_historyUndo_i]));
+        image_editor_apply_sharpen_filter(&(self->m_editor), (int)gtk_adjustment_get_value(sharpenRadius));
     }
 
     // destroy the dialog widget
@@ -614,13 +440,6 @@ void apply_sharpen_filter(EditorWindow *self) {
 
     // unref the builder
     g_object_unref(builder);
-}
-
-void apply_edge_detect_filter(EditorWindow *self) {
-    // save a copy of the current buffer
-    history_update(self);
-    // and apply the filter
-    apply_filter_to_pixelbuffer(EDGEDETECT, (void *)NULL, &(self->m_historyUndoStates[self->m_historyUndo_i]));
 }
 
 void apply_posterize_filter(EditorWindow *self) {
@@ -633,14 +452,7 @@ void apply_posterize_filter(EditorWindow *self) {
 
     // run the dialog
     if (gtk_dialog_run(posterizeDialog) == GTK_RESPONSE_APPLY) {
-        // save a copy of the current buffer
-        history_update(self);
-
-        /// get the parameters
-        PosterizeParams params = {(int)gtk_adjustment_get_value(posterizeBins)};
-
-        // and apply the filter
-        apply_filter_to_pixelbuffer(POSTERIZE, (void *)(&params), &(self->m_historyUndoStates[self->m_historyUndo_i]));
+        image_editor_apply_posterize_filter(&(self->m_editor), (int)gtk_adjustment_get_value(posterizeBins));
     }
 
     // destroy the dialog widget
@@ -660,14 +472,7 @@ void apply_threshold_filter(EditorWindow *self) {
 
     // run the dialog
     if (gtk_dialog_run(thresholdDialog) == GTK_RESPONSE_APPLY) {
-        // save a copy of the current buffer
-        history_update(self);
-
-        /// get the parameters
-        ThresholdParams params = {gtk_adjustment_get_value(thresholdCutoff)};
-
-        // and apply the filter
-        apply_filter_to_pixelbuffer(THRESHOLD, (void *)(&params), &(self->m_historyUndoStates[self->m_historyUndo_i]));
+        image_editor_apply_threshold_filter(&(self->m_editor), gtk_adjustment_get_value(thresholdCutoff));
     }
 
     // destroy the dialog widget
@@ -687,15 +492,13 @@ void apply_threshold_filter(EditorWindow *self) {
 
 /* Prepares the editorWindow instance based on an input width, height, and color
 Should be called by the user exactly ONCE after getting a new instance of EditorWindow */
-void editor_window_canvas_init(EditorWindow *self, int width, int height, GdkRGBA backgroundColor) {
+void editor_window_canvas_init_from_parameters(EditorWindow *self, int width, int height, GdkRGBA backgroundColor) {
     gtk_widget_set_size_request(GTK_WIDGET(self->m_canvasGLArea), width, height);
 
     // initialize the renderBuffer to be the correct size
     self->m_renderBuffer = malloc(sizeof(unsigned int) * 4 * width * height);
 
-    // create the initial PixelBuffer and set its background color
-    self->m_historyUndoStates[0] = pixelbuffer_new(width, height);
-    pixelbuffer_set_all_pixels(&(self->m_historyUndoStates[0]), backgroundColor);
+    image_editor_init_from_parameters(&(self->m_editor), width, height, backgroundColor);
 
     // refresh the canvas to show the initial pixelbuffer
     editor_window_canvas_refresh(self);
@@ -703,48 +506,17 @@ void editor_window_canvas_init(EditorWindow *self, int width, int height, GdkRGB
 
 /* Prepares the editorWindow instance based on an input filepath
 Should be called by the user exactly ONCE after getting a new instance of EditorWindow */
-void editor_window_canvas_init_with_image_path(EditorWindow *self, const char *path) {
-    printf("%s\n", path);
-    // load the image into memory
-    unsigned error;
-    unsigned char* data;
-    unsigned width, height;
+void editor_window_canvas_init_from_file(EditorWindow *self, const char *filepath) {
+    image_editor_init_from_file(&(self->m_editor), filepath);
 
-    error = lodepng_decode32_file(&data, &width, &height, path);
-
-    // if there was a problem loading, then quit
-    if (error) {
-        printf("error %u: %s\n", error, lodepng_error_text(error));
-        gtk_widget_destroy(GTK_WIDGET(self));
-    }
+    int width = image_editor_get_current_pixelbuffer(&(self->m_editor))->width;
+    int height = image_editor_get_current_pixelbuffer(&(self->m_editor))->height;
 
     // set the size request
     gtk_widget_set_size_request(GTK_WIDGET(self->m_canvasGLArea), width, height);
 
     // initialize the renderBuffer to be the correct size
     self->m_renderBuffer = malloc(sizeof(unsigned int) * 4 * width * height);
-
-    // create the initial PixelBuffer and set its background color
-    self->m_historyUndoStates[0] = pixelbuffer_new(width, height);
-
-    // set its backgroundColor to be white by default
-    GdkRGBA color = {1.0, 1.0, 1.0, 1.0};
-    pixelbuffer_set_all_pixels(&(self->m_historyUndoStates[0]), color);
-
-    // set all pixels of pixelbuffer from input image
-    for (int y = 0; y < height; y++) {
-        for (int x = 0; x < width; x++) {
-            int offset = (width * 4 * y) + (x*4);
-            color.red = data[offset + 0] / (double)255.0;
-            color.green = data[offset + 1] / (double)255.0;
-            color.blue = data[offset + 2] / (double)255.0;
-            color.alpha = data[offset + 3] / (double)255.0;
-            pixelbuffer_set_pixel(&(self->m_historyUndoStates[0]), x, y, GdkRGBA_clamp(color, 0.0, 1.0));
-        }
-    }
-
-    // clear loaded png from memory
-    free(data);
 
     // refresh the canvas to show the initial pixelbuffer
     editor_window_canvas_refresh(self);
@@ -766,6 +538,14 @@ static void editor_window_init (EditorWindow *self) {
 
 
 
+
+    //
+    // EDITOR setup
+    //
+
+    self->m_editor = image_editor_new();
+
+
     //
     // TOOLS WINDOW setup
     //
@@ -775,8 +555,7 @@ static void editor_window_init (EditorWindow *self) {
     tools_window_link_editorWindow(self->m_tools_window, self);
 
     // create a new Tool instance and assign it to the ToolsWindow
-    self->m_current_tool = tool_new();
-    tools_window_link_tool(self->m_tools_window, &(self->m_current_tool));
+    tools_window_link_tool(self->m_tools_window, &(self->m_editor.m_tool));
 
     // present the ToolsWindow
     gtk_window_present(GTK_WINDOW(self->m_tools_window));
@@ -821,11 +600,14 @@ static void editor_window_init (EditorWindow *self) {
 
     // menu UNDO
     GtkMenuItem *undoButton = GTK_MENU_ITEM(gtk_builder_get_object(builder, "undoButton"));
-    g_signal_connect_swapped(undoButton, "activate", (GCallback)history_undo, self);
+    g_signal_connect_swapped(undoButton, "activate", (GCallback)image_editor_undo, &(self->m_editor));
+    g_signal_connect_swapped(undoButton, "activate", (GCallback)editor_window_canvas_refresh, self);
+
 
     // menu REDO
     GtkMenuItem *redoButton = GTK_MENU_ITEM(gtk_builder_get_object(builder, "redoButton"));
-    g_signal_connect_swapped(redoButton, "activate", (GCallback)history_redo, self);
+    g_signal_connect_swapped(redoButton, "activate", (GCallback)image_editor_redo, &(self->m_editor));
+    g_signal_connect_swapped(redoButton, "activate", (GCallback)editor_window_canvas_refresh, self);
 
     // menu SATURATION
     GtkMenuItem *saturationButton = GTK_MENU_ITEM(gtk_builder_get_object(builder, "saturationButton"));
@@ -841,7 +623,7 @@ static void editor_window_init (EditorWindow *self) {
 
     // menu INVERT
     GtkMenuItem *invertButton = GTK_MENU_ITEM(gtk_builder_get_object(builder, "invertButton"));
-    g_signal_connect_swapped(invertButton, "activate", (GCallback)apply_invert_filter, self);
+    g_signal_connect_swapped(invertButton, "activate", (GCallback)image_editor_apply_invert_filter, &(self->m_editor));  // todo: will need canvas refresh
 
     // menu GAUSSIAN_BLUR
     GtkMenuItem *gaussianBlurButton = GTK_MENU_ITEM(gtk_builder_get_object(builder, "gaussianBlurButton"));
@@ -857,7 +639,7 @@ static void editor_window_init (EditorWindow *self) {
 
     // menu EDGE DETECT
     GtkMenuItem *edgeDetectButton = GTK_MENU_ITEM(gtk_builder_get_object(builder, "edgeDetectButton"));
-    g_signal_connect_swapped(edgeDetectButton, "activate", (GCallback)apply_edge_detect_filter, self);
+    g_signal_connect_swapped(edgeDetectButton, "activate", (GCallback)image_editor_apply_edge_detect_filter, &(self->m_editor));  // todo: will need canvas refresh
 
     // menu POSTERIZE
     GtkMenuItem *posterizeButton = GTK_MENU_ITEM(gtk_builder_get_object(builder, "posterizeButton"));
@@ -896,13 +678,13 @@ static void editor_window_init (EditorWindow *self) {
     self->m_canvasGLArea = GTK_GL_AREA(gtk_builder_get_object(builder, "canvasGLArea"));
     g_signal_connect_swapped(self->m_canvasGLArea, "render", (GCallback)editor_window_canvas_render, self);
 
-    // set the initial history indexes
-    self->m_historyUndo_i = 0;
-    self->m_historyRedo_i = 0;
 
-    // set the initial prev pos
+    // set the initial mouse pos
+    self->m_mousePosX = 0;
+    self->m_mousePosY = 0;
     self->m_mousePosX_prev = 0;
     self->m_mousePosY_prev = 0;
+    self->m_mouseDown = 0;
 
     // finally, unref the builder
     g_object_unref(builder);

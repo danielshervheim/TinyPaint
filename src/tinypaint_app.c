@@ -66,7 +66,7 @@ tinypaint_app_activate(GApplication *app) {
         EditorWindow *edwin = editor_window_new();
 
         // pass in the initialization parameters
-        editor_window_canvas_init(edwin, width, height, color);
+        editor_window_canvas_init_from_parameters(edwin, width, height, color);
 
         // override the quit signal to quit the gtk main loop when the editorWindow closes
         g_signal_connect_swapped(GTK_WIDGET(edwin), "destroy", (GCallback)on_editorWindow_destroy, self);
@@ -94,7 +94,7 @@ gint n_files, const gchar *hint) {
         char *filepath = g_file_get_path(files[i]);
 
         EditorWindow *edwin = editor_window_new();
-        editor_window_canvas_init_with_image_path(edwin, filepath);
+        editor_window_canvas_init_from_file(edwin, filepath);
 
         g_signal_connect_swapped(edwin, "destroy", (GCallback)on_editorWindow_destroy, self);
         self->m_numWindows++;
