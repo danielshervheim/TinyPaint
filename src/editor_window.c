@@ -6,20 +6,18 @@
 
 #include "editor_window.h"
 
-#include "tools_window.h"
-#include "tool.h"
-#include "pixel_buffer.h"
-#include "utilities.h"  // double_lerp()
 
-#include "filter.h"
-
-#include "lodepng.h"
-
-#include <GL/gl.h>  // openGL headers
-#include <math.h>  // pow(), sqrt()
 
 
 #include "image_editor.h"
+#include "pixel_buffer.h"
+//#include "tool.h"
+#include "tools_window.h"
+#include "utilities.h"
+
+#include <GL/gl.h>  // openGL headers
+
+
 
 struct _EditorWindow {
     GtkWindow parent_instance;
@@ -30,13 +28,13 @@ struct _EditorWindow {
     // instance properties
     ToolsWindow *m_tools_window;
 
-    // the canvas
+    // the canvas glarea
     GtkGLArea *m_canvasGLArea;
 
-
+    // the temporary buffer used to render the pixelbuffer to the screen via opengl
     unsigned int *m_renderBuffer;
 
-    // mouse tracking
+    // mouse tracking variables
     int m_mousePosX;
     int m_mousePosY;
     int m_mousePosX_prev;
@@ -264,8 +262,6 @@ void canvas_mouseMove(EditorWindow *self, GdkEventMotion *event) {
         self->m_mousePosX = event->x;
         self->m_mousePosY = event->y;
 
-
-
         image_editor_stroke_move(&(self->m_editor), self->m_mousePosX, self->m_mousePosY, self->m_mousePosX_prev, self->m_mousePosY_prev);
         editor_window_canvas_refresh(self);
     }
@@ -310,9 +306,6 @@ void canvas_mouseUp(EditorWindow *self, GdkEventMotion *event) {
 //
 // FILTER methods
 //
-
-
-
 
 void apply_saturation_filter(EditorWindow *self) {
     // get a reference to the builder
@@ -525,14 +518,14 @@ void editor_window_canvas_init_from_file(EditorWindow *self, const char *filepat
 /* Initializies the instance of EditorWindow */
 static void editor_window_init (EditorWindow *self) {
     //
-    // INSTANCE setup
+    // PARENT WINDOW setup
     //
 
     // set the window title and properties
     gtk_window_set_title(GTK_WINDOW(self), "TinyPaint");
     gtk_window_set_resizable(GTK_WINDOW(self), 0);
 
-    // set the destroy signal overide
+    // set the close and key-event signal overide
     g_signal_connect(self, "delete-event", (GCallback)editor_window_quit, NULL);
     g_signal_connect(self, "key-press-event", (GCallback)editor_window_keyPress, NULL);
 
@@ -579,7 +572,7 @@ static void editor_window_init (EditorWindow *self) {
 
 
     //
-    // MENU setup
+    // MENU BUTTONS setup
     //
 
     // menu NEW
@@ -623,7 +616,8 @@ static void editor_window_init (EditorWindow *self) {
 
     // menu INVERT
     GtkMenuItem *invertButton = GTK_MENU_ITEM(gtk_builder_get_object(builder, "invertButton"));
-    g_signal_connect_swapped(invertButton, "activate", (GCallback)image_editor_apply_invert_filter, &(self->m_editor));  // todo: will need canvas refresh
+    g_signal_connect_swapped(invertButton, "activate", (GCallback)image_editor_apply_invert_filter, &(self->m_editor));
+    g_signal_connect_swapped(invertButton, "activate", (GCallback)editor_window_canvas_refresh, self);
 
     // menu GAUSSIAN_BLUR
     GtkMenuItem *gaussianBlurButton = GTK_MENU_ITEM(gtk_builder_get_object(builder, "gaussianBlurButton"));
@@ -639,7 +633,8 @@ static void editor_window_init (EditorWindow *self) {
 
     // menu EDGE DETECT
     GtkMenuItem *edgeDetectButton = GTK_MENU_ITEM(gtk_builder_get_object(builder, "edgeDetectButton"));
-    g_signal_connect_swapped(edgeDetectButton, "activate", (GCallback)image_editor_apply_edge_detect_filter, &(self->m_editor));  // todo: will need canvas refresh
+    g_signal_connect_swapped(edgeDetectButton, "activate", (GCallback)image_editor_apply_edge_detect_filter, &(self->m_editor));
+    g_signal_connect_swapped(edgeDetectButton, "activate", (GCallback)editor_window_canvas_refresh, self);
 
     // menu POSTERIZE
     GtkMenuItem *posterizeButton = GTK_MENU_ITEM(gtk_builder_get_object(builder, "posterizeButton"));
@@ -671,13 +666,18 @@ static void editor_window_init (EditorWindow *self) {
 
 
     //
-    // INSTANCE PARAMETERS setup
+    // CANVAS rendering setup
     //
 
     // get canvas reference (and save it as instance parameter) and set its signal handler
     self->m_canvasGLArea = GTK_GL_AREA(gtk_builder_get_object(builder, "canvasGLArea"));
     g_signal_connect_swapped(self->m_canvasGLArea, "render", (GCallback)editor_window_canvas_render, self);
 
+
+
+    //
+    // MOUSE TRACKING variables setup
+    //
 
     // set the initial mouse pos
     self->m_mousePosX = 0;

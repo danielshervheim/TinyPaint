@@ -13,6 +13,10 @@ struct _ToolsWindow {
     Tool *m_tool;
     int m_recurse_flag;
 
+    // parameter buttons
+    GtkColorButton *m_toolColor;
+    GtkAdjustment *m_toolRadius;
+
     // toggle buttons
     GtkToggleButton *m_pencilButton;
     GtkToggleButton *m_brushButton;
@@ -138,7 +142,12 @@ void tools_window_link_tool(ToolsWindow *self, Tool *tool) {
             fflush(stdout);
         }
 
+        // set the default tool to pencil
         on_toolButton_toggled(self->m_pencilButton, self);
+
+        // and set the default color and radius parameters
+        on_toolColor_color_set(self->m_toolColor, self);
+        on_toolRadius_value_changed(self->m_toolRadius, self);
     }
 }
 
@@ -217,12 +226,12 @@ static void tools_window_init (ToolsWindow *self) {
         (GCallback)on_toolButton_toggled, self);
 
     // get references to the tool radius and color widgets
-    GtkAdjustment *toolRadius = GTK_ADJUSTMENT(gtk_builder_get_object(builder, "toolRadius"));
-    GtkColorButton *toolColor = GTK_COLOR_BUTTON(gtk_builder_get_object(builder, "toolColor"));
+    self->m_toolRadius = GTK_ADJUSTMENT(gtk_builder_get_object(builder, "toolRadius"));
+    self->m_toolColor = GTK_COLOR_BUTTON(gtk_builder_get_object(builder, "toolColor"));
 
     // and connect the appropriate signal handlers
-    g_signal_connect(toolRadius, "value-changed", (GCallback)on_toolRadius_value_changed, self);
-    g_signal_connect(toolColor, "color-set", (GCallback)on_toolColor_color_set, self);
+    g_signal_connect(self->m_toolRadius, "value-changed", (GCallback)on_toolRadius_value_changed, self);
+    g_signal_connect(self->m_toolColor, "color-set", (GCallback)on_toolColor_color_set, self);
 
     // set the initial instance parameters to their defaults
     self->m_tool = NULL;
