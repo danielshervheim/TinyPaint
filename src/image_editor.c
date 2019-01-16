@@ -6,28 +6,18 @@
 
 #include "image_editor.h"
 
-#include "utilities.h"
-
 #include "lodepng.h"
-
+#include "utilities.h"
 
 #include <math.h>  // pow, sqrt
 
 
 
+//
+// PRIVATE methods
+//
 
-
-
-
-
-
-
-
-
-
-// private methods
-
-
+/* clears the array of saved undo states. */
 void image_editor_history_clear_redo(ImageEditor *self) {
     for (int i = 0; i < self->m_redoIndex; i++) {
         pixelbuffer_destroy(&(self->m_redoStates[i]));
@@ -35,6 +25,7 @@ void image_editor_history_clear_redo(ImageEditor *self) {
     self->m_redoIndex = 0;
 }
 
+/* clears the array of saved redone states. */
 void image_editor_history_clear_undo(ImageEditor *self) {
     for (int i = 0; i < self->m_undoIndex; i++) {
         pixelbuffer_destroy(&(self->m_undoStates[i]));
@@ -42,7 +33,7 @@ void image_editor_history_clear_undo(ImageEditor *self) {
     self->m_undoIndex = 0;
 }
 
-
+/* Copies the current pixelbuffer as a new saved state for editing. */
 void image_editor_history_update(ImageEditor *self) {
     // clear the redo history
     image_editor_history_clear_redo(self);
@@ -69,13 +60,9 @@ void image_editor_history_update(ImageEditor *self) {
 
 
 
-
-
-
-
-// public methods
-
-
+//
+// PUBLIC methods
+//
 
 ImageEditor image_editor_new() {
     ImageEditor tmp;
@@ -132,12 +119,6 @@ void image_editor_destroy(ImageEditor *self) {
     image_editor_history_clear_undo(self);
 }
 
-
-
-
-
-
-
 PixelBuffer* image_editor_get_current_pixelbuffer(ImageEditor *self) {
     return &(self->m_undoStates[self->m_undoIndex]);
 }
@@ -172,11 +153,6 @@ void image_editor_save_current_pixelbuffer(ImageEditor *self, const char *filepa
     // free the temporary buffer
     free(tmp);
 }
-
-
-
-
-
 
 void image_editor_stroke_start(ImageEditor *self, int x, int y) {
     image_editor_history_update(self);
@@ -222,17 +198,7 @@ void image_editor_stroke_end(ImageEditor *self, int x, int y) {
     }
 }
 
-
-
-
-
-
-
-
-
-
 void image_editor_undo(ImageEditor *self) {
-    printf("undo\n");
     if (self->m_undoIndex > 0 && self->m_undoIndex < MAX_HISTORY_STATES) {
         self->m_redoStates[self->m_redoIndex] = self->m_undoStates[self->m_undoIndex];
         self->m_redoIndex++;
@@ -241,7 +207,6 @@ void image_editor_undo(ImageEditor *self) {
 }
 
 void image_editor_redo(ImageEditor *self) {
-    printf("redo\n");
     if (self->m_redoIndex > 0 && self->m_redoIndex < MAX_HISTORY_STATES) {
         self->m_redoIndex--;
         self->m_undoIndex++;
@@ -249,15 +214,7 @@ void image_editor_redo(ImageEditor *self) {
     }
 }
 
-
-
-
-
-
-
-
-
-// within these functions, make sure the first thing is calling history_update
+// todo: within these functions, make sure the first thing is calling history_update
 void image_editor_apply_saturation_filter(ImageEditor *self, double scale) {
     printf("image_editor_apply_saturation_filter\n");
 }

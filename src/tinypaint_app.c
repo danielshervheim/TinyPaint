@@ -15,39 +15,31 @@
 
 struct _TinyPaintApp {
     GtkApplication parent_instance;
-    // instance variables of subclass go here
-
     int m_numWindows;
 };
 
 G_DEFINE_TYPE(TinyPaintApp, tinypaint_app, GTK_TYPE_APPLICATION);
 
-// todo: add startup and shutdown signal handlers
 
 
+/* decrements the number of windows open and quits if there are none left. */
 void on_editorWindow_destroy(TinyPaintApp *self) {
-    // todo: bug: when fork-execing -- this is still copied over in memory...
-    printf("pre: %d, post %d\n", self->m_numWindows, self->m_numWindows-1);
+    /* todo: bug: when fork-execing -- this is still copied over in memory so
+    the process doesn't quit when the EditorWindow closes... */
     self->m_numWindows--;
     if (self->m_numWindows == 0) {
         gtk_main_quit();
     }
 }
 
-
-
-//
-//
-//
-
-static void
-tinypaint_app_init (TinyPaintApp *self) {
-    // initialisation goes here
+/* initializes the instance */
+static void tinypaint_app_init (TinyPaintApp *self) {
+    // initially there are no EditorWindow instances running
     self->m_numWindows = 0;
 }
 
-static void
-tinypaint_app_activate(GApplication *app) {
+/* Fires when the user opens TinyPaint without arguments (i.e. from the launcher) */
+static void tinypaint_app_activate(GApplication *app) {
     TinyPaintApp *self = (TinyPaintApp *)app;
 
     NewImageDialog *nidia = new_image_dialog_new();
@@ -84,12 +76,11 @@ tinypaint_app_activate(GApplication *app) {
     }
 }
 
-static void
-tinypaint_app_open (GApplication *app, GFile **files,
-gint n_files, const gchar *hint) {
-
+/* Fires when the user opens TinyPaint with arguments (i.e. right click->open in) */
+static void tinypaint_app_open (GApplication *app, GFile **files, gint n_files, const gchar *hint) {
     TinyPaintApp *self = (TinyPaintApp *)app;
 
+    // for each input file, spawn a new EditorWindow for it and run them
     for (int i = 0; i < n_files; i++) {
         char *filepath = g_file_get_path(files[i]);
 

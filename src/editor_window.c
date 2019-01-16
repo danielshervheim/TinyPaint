@@ -6,12 +6,8 @@
 
 #include "editor_window.h"
 
-
-
-
 #include "image_editor.h"
 #include "pixel_buffer.h"
-//#include "tool.h"
 #include "tools_window.h"
 #include "utilities.h"
 
@@ -31,7 +27,8 @@ struct _EditorWindow {
     // the canvas glarea
     GtkGLArea *m_canvasGLArea;
 
-    // the temporary buffer used to render the pixelbuffer to the screen via opengl
+    // the temporary buffer used to render the
+    // pixelbuffer to the screen via opengl
     unsigned int *m_renderBuffer;
 
     // mouse tracking variables
@@ -43,11 +40,6 @@ struct _EditorWindow {
 };
 
 G_DEFINE_TYPE(EditorWindow, editor_window, GTK_TYPE_WINDOW);
-
-
-
-
-
 
 
 
@@ -64,19 +56,24 @@ void editor_window_canvas_render(EditorWindow *self, GdkGLContext *context) {
     glClearColor (0, 0, 0, 1);
     glClear (GL_COLOR_BUFFER_BIT);
 
-
+    // get the current pixelbuffer from the editor
     PixelBuffer *render = image_editor_get_current_pixelbuffer(&(self->m_editor));
 
-    // update this instances renderBuffer based on the current PixelBuffer
+    // update the renderBuffer based on the current PixelBuffer
     for (int y = 0; y < render->height; y++) {
         for (int x = 0; x < render->width; x++) {
-            // OpenGL renders upside down... not sure why...
+            // OpenGL renders upside down so we must flip the y axis
             int y_modified = (render->height - 1) - y;
-            GdkRGBA currentColor = pixelbuffer_get_pixel(render, x, y);
-            memset(self->m_renderBuffer + (render->width * 4 * y_modified) + (4 * x) + 0, currentColor.red * 255, sizeof(unsigned int));
-            memset(self->m_renderBuffer + (render->width * 4 * y_modified) + (4 * x) + 1, currentColor.green * 255, sizeof(unsigned int));
-            memset(self->m_renderBuffer + (render->width * 4 * y_modified) + (4 * x) + 2, currentColor.blue * 255, sizeof(unsigned int));
-            memset(self->m_renderBuffer + (render->width * 4 * y_modified) + (4 * x) + 3, currentColor.alpha * 255, sizeof(unsigned int));
+
+            int offset = (render->width * 4 * y_modified) + (4 * x);
+            int size = (sizeof(unsigned int));
+
+            GdkRGBA color = pixelbuffer_get_pixel(render, x, y);
+
+            memset(self->m_renderBuffer + offset + 0, color.red * 255, size);
+            memset(self->m_renderBuffer + offset + 1, color.green * 255, size);
+            memset(self->m_renderBuffer + offset + 2, color.blue * 255, size);
+            memset(self->m_renderBuffer + offset + 3, color.alpha * 255, size);
         }
     }
 
@@ -95,7 +92,7 @@ void editor_window_canvas_refresh(EditorWindow *self) {
 // EDITOR WINDOW input/output
 //
 
-/* Saves the current pixelbuffer of the EditorWindow instance to a .png file */
+/* Runs the save dialog */
 void editor_window_save(EditorWindow *self) {
     // get a reference to the builder
     GtkBuilder *builder = gtk_builder_new_from_resource("/tinypaint/ui/io_dialogs.glade");
@@ -119,15 +116,12 @@ void editor_window_save(EditorWindow *self) {
             sprintf(filename_final, "%s.png", filename);
         }
 
-        // destroy saveDialog widget
-        gtk_widget_destroy(GTK_WIDGET(saveDialog));
-
         // and save the image
         image_editor_save_current_pixelbuffer(&(self->m_editor), filename_final);
     }
-    else {
-        gtk_widget_destroy(GTK_WIDGET(saveDialog));
-    }
+
+    // destroy saveDialog widget
+    gtk_widget_destroy(GTK_WIDGET(saveDialog));
 
     // finally, unref the builder
     g_object_unref(builder);
@@ -139,7 +133,7 @@ void editor_window_save(EditorWindow *self) {
 // EDITOR WINDOW management
 //
 
-/* Fires when the user intends to close the window */
+/* Asks the user if they want to save before quitting */
 void editor_window_quit(EditorWindow *self) {
     printf("quitting\n");
 
@@ -163,10 +157,11 @@ void editor_window_quit(EditorWindow *self) {
     gtk_widget_destroy(GTK_WIDGET(self));
 }
 
-/* Forks a new process and starts a new TinyPaintApp instance */
+/* Starts a new TinyPaintApp instance */
 void editor_window_start_new() {
     int pid = fork();
 
+    // fork a new process and exec to start a new TinyPaintApp instance
     if (pid < 0) {
         printf("fork() failed\n");
     }
@@ -176,7 +171,7 @@ void editor_window_start_new() {
     }
 }
 
-/* Asks the user for a file to open, then fork-execs a new process to open it */
+/* Runs the open dialog, and opens a file in a new TinyPaintApp instance */
 void editor_window_open_new() {
     // get a reference to the builder
     GtkBuilder *builder = gtk_builder_new_from_resource("/tinypaint/ui/io_dialogs.glade");
@@ -189,10 +184,9 @@ void editor_window_open_new() {
         // get file string
         gchar *filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(openDialog));
 
-        printf("filename: %s\n", filename);
-
         int pid = fork();
 
+        // fork a new process and exec to open the file in a new TinyPaintApp instance
         if (pid < 0) {
             printf("fork() failed\n");
         }
@@ -200,39 +194,36 @@ void editor_window_open_new() {
             execl("/usr/bin/tinypaint", "tinypaint", filename, (char *)NULL);
             printf("exec() failed\n");
         }
+
+        // free the memory allocated to the filename
         g_free(filename);
     }
+
     gtk_widget_destroy(GTK_WIDGET(openDialog));
 
     g_object_unref(builder);
 }
 
-/* Fires when the user presses a key when the EditorWindow is active */
+/* Catches the keystrokes in the EditorWindow */
 int editor_window_keyPress(EditorWindow *self, GdkEventKey *event) {
-    if (event->keyval == 122 && event->state == 20) {
-        // (CTRL+Z) undo
+    if (event->keyval == 122 && event->state == 20) {  // (CTRL+Z) undo
         image_editor_undo(&(self->m_editor));
         editor_window_canvas_refresh(self);
     }
-    else if (event->keyval == 90 && event->state == 21) {
-        // (CTRL+LSHIFT+Z) redo
+    else if (event->keyval == 90 && event->state == 21) {  // (CTRL+LSHIFT+Z) redo
         image_editor_redo(&(self->m_editor));
         editor_window_canvas_refresh(self);
     }
-    else if (event->keyval == 113 && event->state == 20) {
-        // (CTRL+Q) quit
+    else if (event->keyval == 113 && event->state == 20) {  // (CTRL+Q) quit
         gtk_window_close(GTK_WINDOW(self));
     }
-    else if (event->keyval == 110 && event->state == 20) {
-        // (CTRL+N) new
+    else if (event->keyval == 110 && event->state == 20) {  // (CTRL+N) new
         editor_window_start_new();
     }
-    else if (event->keyval == 111 && event->state == 20) {
-        // (CTRL+O) open
+    else if (event->keyval == 111 && event->state == 20) {  // (CTRL+O) open
         editor_window_open_new();
     }
-    else if (event->keyval == 115 && event->state == 20) {
-        // (CTRL+S) save
+    else if (event->keyval == 115 && event->state == 20) {  // (CTRL+S) save
         editor_window_save(self);
     }
 
@@ -250,7 +241,7 @@ int editor_window_keyPress(EditorWindow *self, GdkEventKey *event) {
 int canvas_mouseHold(EditorWindow *self) {
     image_editor_stroke_hold(&(self->m_editor), self->m_mousePosX, self->m_mousePosY);
     editor_window_canvas_refresh(self);
-    return self->m_mouseDown;
+    return self->m_mouseDown;  // will uninstall itself when the mouse is lifted
 }
 
 /* Fires when the mouse is moved on the canvas */
@@ -295,11 +286,6 @@ void canvas_mouseUp(EditorWindow *self, GdkEventMotion *event) {
     image_editor_stroke_end(&(self->m_editor), self->m_mousePosX, self->m_mousePosY);
     editor_window_canvas_refresh(self);
 }
-
-
-
-
-
 
 
 
@@ -477,11 +463,9 @@ void apply_threshold_filter(EditorWindow *self) {
 
 
 
-
 //
 //  EDITOR initialization methods
 //
-
 
 /* Prepares the editorWindow instance based on an input width, height, and color
 Should be called by the user exactly ONCE after getting a new instance of EditorWindow */
@@ -531,12 +515,11 @@ static void editor_window_init (EditorWindow *self) {
 
 
 
-
     //
     // EDITOR setup
     //
-
     self->m_editor = image_editor_new();
+
 
 
     //
@@ -595,7 +578,6 @@ static void editor_window_init (EditorWindow *self) {
     GtkMenuItem *undoButton = GTK_MENU_ITEM(gtk_builder_get_object(builder, "undoButton"));
     g_signal_connect_swapped(undoButton, "activate", (GCallback)image_editor_undo, &(self->m_editor));
     g_signal_connect_swapped(undoButton, "activate", (GCallback)editor_window_canvas_refresh, self);
-
 
     // menu REDO
     GtkMenuItem *redoButton = GTK_MENU_ITEM(gtk_builder_get_object(builder, "redoButton"));

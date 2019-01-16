@@ -43,9 +43,9 @@ void on_toolButton_toggled(GtkToggleButton *button, gpointer user_data) {
         return;
     }
 
-    // calling "gtk_toggle_button_set_active()" as we must do, causes the "on_toolButton_toggled"
-    // signal to fire again, which if left unchecked leads to infinite recursion. This flag is
-    // to prevent recursing farther than a depth of 1.
+    /* calling "gtk_toggle_button_set_active()" as we must do, causes the "on_toolButton_toggled"
+    signal to fire again, which if left unchecked leads to infinite recursion.
+    This flag is to prevent recursing farther than a depth of 1. */
     if (self->m_recurse_flag == 1) {
         return;
     }
@@ -60,7 +60,6 @@ void on_toolButton_toggled(GtkToggleButton *button, gpointer user_data) {
     gtk_toggle_button_set_active(self->m_sprayCanButton, 0);
     gtk_toggle_button_set_active(self->m_floodFillButton, 0);
     gtk_toggle_button_set_active(self->m_eraserButton, 0);
-
 
     if (button == self->m_pencilButton) {
         gtk_toggle_button_set_active(self->m_pencilButton, 1);
@@ -120,8 +119,6 @@ void on_toolColor_color_set(GtkColorButton *button, gpointer user_data) {
     gtk_color_chooser_get_rgba(GTK_COLOR_CHOOSER(button), &(self->m_tool->color));
 }
 
-
-// todo: make sure radius and color are set at least once after initialization in case user doesn't change them!!!
 
 
 //
@@ -254,66 +251,3 @@ static void tools_window_class_init (ToolsWindowClass *class) {
     // not necessary???
     // GObject property stuff would go here...
 }
-
-/*
-
-
-in the struct, there is a "Tool *current_tool" pointer which gets passed in to set after initialization
-
-
-in editor:
-==========
-
-
-ToolsWindow *tw = tools_window_new();
-tools_window_link_tool(tw, &m_current_tool);
-
-// now the tool will be updated whenever the toolWindow properties change!
-
-in toolsWindow.c:
-================
-
-
-
-// callback example
-on tool button switch (ToolsWindow *self):
-    self->m_tool->tooltype == TOOLTYPE_X
-
-
-on_activate() {
-    get builder from resources
-
-    get references to all tool toggle buttons
-
-    add image from resource to all buttons (as correct icon)
-
-    install signal handler (same one for each button, but pass in the correspdoning ToolType as the data)
-
-    add grid to window (toolsWindow derives from Window)
-
-    set appropriate window settings
-    (modal, non-deletable, transient parent, etc, etc)
-
-    unref builder
-
-    show all
-}
-
-void on_toolButton_toggled(GtkWidget *button, ???, gpointer user_data) {
-    ToolType toggled_type = (ToolType)user_data;
-    switch (toggled_type) {
-        case PEN:
-
-        case BRUSH:
-
-        etc etc
-
-        // update the m_tool->tooltype
-        and call update_masks etc etc
-    }
-}
-
-
-
-
-*/

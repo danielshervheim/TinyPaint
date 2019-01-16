@@ -13,14 +13,17 @@
     only extended the algorithm to compare 4-channel RGBA colors, rather than
     boolean values. His pseudocode, and website can be found at the link below:
 
-    // http://www.adammil.net/blog/v126_A_More_Efficient_Flood_Fill.html
+    http://www.adammil.net/blog/v126_A_More_Efficient_Flood_Fill.html
 */
 
-// These function headers are declared here rather than in flood_fill.h because
-// they should not really be accessable to the programmer.
+/* These function headers are declared here rather than in flood_fill.h because
+they should not really be accessable to the programmer. */
 void flood_fill_stage2(PixelBuffer *buffer, int x, int y, GdkRGBA target, GdkRGBA replacement);
 void flood_fill_stage3(PixelBuffer *buffer, int x, int y, GdkRGBA target, GdkRGBA replacement);
 
+
+
+/* Returns whether the current pixel needs replacing, based on the target color */
 int pixelNeedsReplacement(PixelBuffer *buffer, int x, int y, GdkRGBA target) {
     return GdkRGBA_equals(pixelbuffer_get_pixel(buffer, x, y), target, 0.05);
 }

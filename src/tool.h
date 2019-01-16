@@ -19,32 +19,35 @@ typedef enum tooltype {
     ERASER
 } ToolType;
 
-// todo: this is updated when the tool changes, or the radius or color changes
 typedef struct tool {
     ToolType tooltype;
     int radius;
     GdkRGBA color;
     double *mask;
 
-    // if true, tool is applied when the user is not moving the mouse
+    // if true, tool is applied when the user is not moving the mouse.
     int applyWhenStationary;
 
-    // if true, tool is only applied on stroke start (not stroke continue or end)
+    // if true, tool is only applied on stroke start (not stroke continue or end).
     int isStamp;
 
-    // 1.0 fills every pixel between the current and previous mouse positions
-    // 0.0 fills no pixel between the current and previous mouse positions
+    /* 1.0 fills every pixel between the current and previous mouse positions
+    0.0 fills no pixel between the current and previous mouse positions. */
     double fillRate;
 } Tool;
 
 
 
-void tool_apply_to_pixelbuffer(Tool *tool, PixelBuffer *buffer, int x, int y);
+/* Returns a new instance of Tool. */
+Tool tool_new();
 
+/* Resets the tool parameters to default based on its type. */
 void tool_reset_parameters(Tool *tool);
 
+/* Updates the tool's mask based on its type and current radius. */
 void tool_update_mask(Tool *tool);
 
-Tool tool_new();
+/* Applies the tool to the pixelbuffer at position (x, y) */
+void tool_apply_to_pixelbuffer(Tool *tool, PixelBuffer *buffer, int x, int y);
 
 #endif  // TOOL_H_

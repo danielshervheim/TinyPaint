@@ -18,10 +18,13 @@ G_BEGIN_DECLS
 #define TOOLS_WINDOW_TYPE_WINDOW (tools_window_get_type ())
 G_DECLARE_FINAL_TYPE(ToolsWindow, tools_window, TOOLS_WINDOW, WINDOW, GtkWindow)
 
+/* Returns a pointer to a new ToolsWindow instance. */
 ToolsWindow* tools_window_new(void);
 
+/* Links a Tool to the ToolsWindow instance. */
 void tools_window_link_tool(ToolsWindow *self, Tool *tool);
 
+/* Links an EditorWindow to the ToolsWindow instance. */
 void tools_window_link_editorWindow(ToolsWindow *self, EditorWindow *parent);
 
 G_END_DECLS
