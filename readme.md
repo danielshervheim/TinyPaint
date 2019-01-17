@@ -28,54 +28,70 @@ Currently it features a multitude of brushes, filters, undo/redo, and saving/loa
 #### Brushes
 
 Pen
+
 ![pen](https://i.imgur.com/YcIyjX2.png)
 
 Brush
+
 ![brush](https://i.imgur.com/Ly2U1h3.png)
 
 Marker
+
 ![marker](https://i.imgur.com/JSwkGIX.png)
 
 Airbrush
+
 ![airbrush](https://i.imgur.com/mUJrzzZ.png)
 
 Flood Fill
+
 ![flood fill](https://i.imgur.com/pY4mipe.png)
 
 Eraser
+
 ![eraser](https://i.imgur.com/y9dNTjl.png)
 
 <a name="filters"></a>
 #### Filters
 
 Saturation
+
 ![saturation](https://i.imgur.com/a490B7Z.png)
 
 Channels
+
 ![channels](https://i.imgur.com/NQqbb99.png)
 
 Invert
+
 ![invert](https://i.imgur.com/jjtbpCh.png)
 
 Brightness / Contrast
+
 ![brightnesscontrast](https://i.imgur.com/VY9Oort.png)
 
 Gaussian Blur
+
 ![gaussianblur](https://i.imgur.com/I4ZUrcv.png)
 
 Motion Blur
+
 ![motionblur](https://i.imgur.com/dJBZ5pN.png)
 
 Sharpen
+
 ![sharpen](https://i.imgur.com/grHOXWD.png)
 
 Edge Detection
+
 ![edgedetection](https://i.imgur.com/BlzKl5T.png)
 
 Posterize
+
 ![posterize](https://i.imgur.com/quzt1qY.png)
 
 Threshold
+
 ![threshold](https://i.imgur.com/aFZBgSx.png)
 
 <a name="keyboardshortcuts"></a>
