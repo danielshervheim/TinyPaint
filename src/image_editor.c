@@ -215,7 +215,6 @@ void image_editor_redo(ImageEditor *self) {
     }
 }
 
-// todo: within these functions, make sure the first thing is calling history_update
 void image_editor_apply_saturation_filter(ImageEditor *self, double scale) {
     image_editor_history_update(self);
     SaturationParams params = {scale};
