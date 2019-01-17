@@ -13,7 +13,14 @@
 #include <math.h>  // pow, sqrt
 #include <pthread.h> // pthread
 
-#define NUM_THREADS 25  // how many threads to spawn for the filter application
+/* How many threads to spawn for the filter application. I have found 25 is the
+goldilocks zone. On average, it reduces filter application times by a factor of 10. */
+#define NUM_THREADS 25
+
+/* Whether multithreading is enabled or not. This is mainly for debugging
+purposes. 0 is disabled, 1 is enabled. */
+#define MULTITHREADING 1
+
 
 
 //
@@ -135,10 +142,6 @@ void* convolution_worker(void *data) {
             // accumulator
             GdkRGBA accum = {0.0, 0.0, 0.0, 1.0};
 
-            /* threshold factor to determine how much a kernel would contribute for
-            us to consider using it. */
-            double threshold = 0.01;
-
             // convolve the kernel over the current pixel
             for (int v = 0; v < args->kernel->edgeLength; v++) {
                 for (int u = 0; u < args->kernel->edgeLength; u++) {
@@ -147,8 +150,8 @@ void* convolution_worker(void *data) {
                         int v_onBuffer = y + (v - args->kernel->radius);
 
                         // and clamp it to be within the buffer bounds
-                        u_onBuffer = int_clamp(u_onBuffer, 0, w);
-                        v_onBuffer = int_clamp(v_onBuffer, 0, h);
+                        u_onBuffer = int_clamp(u_onBuffer, 0, args->read->width-1);
+                        v_onBuffer = int_clamp(v_onBuffer, 0, args->read->height-1);
 
                         // calculate the value of the current pixel convolved
                         GdkRGBA currentValue = GdkRGBA_scale(pixelbuffer_get_pixel(args->read,
@@ -186,27 +189,63 @@ void apply_convolution_filter_to_pixelbuffer(FilterType type, void *params, Pixe
     // convolution filter requires a copy of the pixelbuffer.
     PixelBuffer copy = pixelbuffer_copy(buffer);
 
-    // create an array of thread ids, and int ids to pass into the helper threads.
-    pthread_t tids[NUM_THREADS];
-    int ids[NUM_THREADS];
-    for (int i = 0; i < NUM_THREADS; i++) {
-        ids[i] = i;
-    }
+    if (MULTITHREADING == 1) {
+        // create an array of thread ids, and int ids to pass into the helper threads.
+        pthread_t tids[NUM_THREADS];
+        ConvolutionWorkerArgs args[NUM_THREADS];
 
-    // spawn the helper threads and pass in the necessary info as a struct.
-    for (int i = 0; i < NUM_THREADS; i++) {
-        ConvolutionWorkerArgs arg;
-        arg.read = &copy;
-        arg.write = buffer;
-        arg.kernel = &kernel;
-        arg.i = ids[i];
-        arg.n = NUM_THREADS;
-        pthread_create(&tids[i], NULL, convolution_worker, (void *)(&arg));
-    }
+        /* we define these first, and each in their own array or else race
+        conditions in the worker thread can cause multiple threads to get the
+        same id, and consequently work on the same part of the image. */
+        for (int i = 0; i < NUM_THREADS; i++) {
+            ConvolutionWorkerArgs arg;
+            arg.read = &copy;
+            arg.write = buffer;
+            arg.kernel = &kernel;
+            arg.i = i;
+            arg.n = NUM_THREADS;
+            args[i] = arg;
+        }
 
-    // then wait for each thread to finish.
-    for (int i = 0; i < NUM_THREADS; i++) {
-        pthread_join(tids[i], NULL);
+        // spawn the helper threads and pass in the necessary info as a struct.
+        for (int i = 0; i < NUM_THREADS; i++) {
+            pthread_create(&tids[i], NULL, convolution_worker, (void *)(&args[i]));
+        }
+
+        // then wait for each thread to finish.
+        for (int i = 0; i < NUM_THREADS; i++) {
+            pthread_join(tids[i], NULL);
+        }
+    }
+    else {  // multithreading disabled.
+        for (int y = 0; y < buffer->height; y++) {
+            for (int x = 0; x < buffer->width; x++) {
+                // accumulator
+                GdkRGBA accum = {0.0, 0.0, 0.0, 1.0};
+
+                // convolve the kernel over the current pixel
+                for (int v = 0; v < kernel.edgeLength; v++) {
+                    for (int u = 0; u < kernel.edgeLength; u++) {
+                        // calculate the position of the current kernel value on the buffer
+                        int u_onBuffer = x + (u - kernel.radius);
+                        int v_onBuffer = y + (v - kernel.radius);
+
+                        // and clamp it to be within the buffer bounds
+                        u_onBuffer = int_clamp(u_onBuffer, 0, buffer->width-1);
+                        v_onBuffer = int_clamp(v_onBuffer, 0, buffer->height-1);
+
+                        // calculate the value of the current pixel convolved
+                        GdkRGBA currentValue = GdkRGBA_scale(pixelbuffer_get_pixel(&copy,
+                            u_onBuffer, v_onBuffer), kernel_get_value(&kernel, u, v));
+
+                        accum = GdkRGBA_add(accum, currentValue);
+                    }
+                }
+
+                // and set the updated pixel
+                pixelbuffer_set_pixel(buffer, x, y, GdkRGBA_clamp(accum, 0.0, 1.0));
+            }
+        }
     }
 
     // and free the temporarily allocated memory.
