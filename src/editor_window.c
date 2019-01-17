@@ -8,6 +8,7 @@
 
 #include "image_editor.h"
 #include "pixel_buffer.h"
+#include "tinypaint_app.h"
 #include "tools_window.h"
 #include "utilities.h"
 
@@ -48,7 +49,7 @@ G_DEFINE_TYPE(EditorWindow, editor_window, GTK_TYPE_WINDOW);
 //
 
 /* Rerenders the gtkGLArea associated with this EditorWindow instance, based on its current pixelbuffer */
-void editor_window_canvas_render(EditorWindow *self, GdkGLContext *context) {
+void canvas_render(EditorWindow *self, GdkGLContext *context) {
     // make the context of the canvas current
     gdk_gl_context_make_current (context);
 
@@ -82,18 +83,61 @@ void editor_window_canvas_render(EditorWindow *self, GdkGLContext *context) {
 }
 
 /* Refreshes this instance's GL canvas (basically triggers the "render" signal) */
-void editor_window_canvas_refresh(EditorWindow *self) {
+void canvas_refresh(EditorWindow *self) {
     gtk_gl_area_queue_render(self->m_canvasGLArea);
 }
 
 
 
 //
-// EDITOR WINDOW input/output
+// FILE I/O methods
 //
 
-/* Runs the save dialog */
-void editor_window_save(EditorWindow *self) {
+/* Opens a new EditorWindow under the current TinyPaintApp instance. */
+void file_new(EditorWindow *self) {
+    GtkApplication *parent = gtk_window_get_application(GTK_WINDOW(self));
+
+    if (parent != NULL) {
+        tinypaint_app_new_editor_window(parent);
+    }
+    else {
+        printf("file_new() ERROR: this EditorWindow has no application parent.\n");
+    }
+}
+
+/* Opens the file as a new EditorWindow under the current TinyPaintApp instance. */
+void file_open(EditorWindow *self) {
+    // get a reference to the builder
+    GtkBuilder *builder = gtk_builder_new_from_resource("/tinypaint/ui/io_dialogs.glade");
+
+    // get a reference to the openDialog from it
+    GtkFileChooserDialog *openDialog =
+        GTK_FILE_CHOOSER_DIALOG(gtk_builder_get_object(builder, "openDialog"));
+
+    if (gtk_dialog_run(GTK_DIALOG(openDialog)) == GTK_RESPONSE_OK) {
+        // get file string
+        gchar *filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(openDialog));
+
+        GtkApplication *parent = gtk_window_get_application(GTK_WINDOW(self));
+
+        if (parent != NULL) {
+            tinypaint_app_new_editor_window_from_file(parent, filename);
+        }
+        else {
+            printf("file_open() RROR: this EditorWindow has no application parent.\n");
+        }
+
+        // free the memory allocated to the filename
+        g_free(filename);
+    }
+
+    gtk_widget_destroy(GTK_WIDGET(openDialog));
+
+    g_object_unref(builder);
+}
+
+/* Saves the current buffer of the ImageEditor to a file dictated by the SaveDialog. */
+void file_save(EditorWindow *self) {
     // get a reference to the builder
     GtkBuilder *builder = gtk_builder_new_from_resource("/tinypaint/ui/io_dialogs.glade");
 
@@ -129,126 +173,51 @@ void editor_window_save(EditorWindow *self) {
 
 
 
+
+
+
 //
-// EDITOR WINDOW management
+// DEVICE I/O callbacks
 //
-
-/* Asks the user if they want to save before quitting */
-void editor_window_quit(EditorWindow *self) {
-    printf("quitting\n");
-
-    // get a reference to the builder
-    GtkBuilder *builder = gtk_builder_new_from_resource("/tinypaint/ui/io_dialogs.glade");
-
-    // get an instance of quit from it
-    GtkDialog *quitConfirmationDialog =
-        GTK_DIALOG(gtk_builder_get_object(builder, "quitConfirmationDialog"));
-
-    // run the dialog, then destroy it
-    int response = gtk_dialog_run(quitConfirmationDialog);
-    gtk_widget_destroy(GTK_WIDGET(quitConfirmationDialog));
-
-    // and take action based on the response
-    if (response == GTK_RESPONSE_YES) {
-        editor_window_save(self);
-    }
-
-    // destroy the editor
-    image_editor_destroy(&(self->m_editor));
-
-    // then finally destroy this instance
-    gtk_widget_destroy(GTK_WIDGET(self));
-}
-
-/* Starts a new TinyPaintApp instance */
-void editor_window_start_new() {
-    int pid = fork();
-
-    // fork a new process and exec to start a new TinyPaintApp instance
-    if (pid < 0) {
-        printf("fork() failed\n");
-    }
-    else if (pid == 0) {
-        execl("/usr/bin/tinypaint", "tinypaint", (char *)NULL);
-        printf("exec() failed\n");
-    }
-}
-
-/* Runs the open dialog, and opens a file in a new TinyPaintApp instance */
-void editor_window_open_new() {
-    // get a reference to the builder
-    GtkBuilder *builder = gtk_builder_new_from_resource("/tinypaint/ui/io_dialogs.glade");
-
-    // get a reference to the openDialog from it
-    GtkFileChooserDialog *openDialog =
-        GTK_FILE_CHOOSER_DIALOG(gtk_builder_get_object(builder, "openDialog"));
-
-    if (gtk_dialog_run(GTK_DIALOG(openDialog)) == GTK_RESPONSE_OK) {
-        // get file string
-        gchar *filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(openDialog));
-
-        int pid = fork();
-
-        // fork a new process and exec to open the file in a new TinyPaintApp instance
-        if (pid < 0) {
-            printf("fork() failed\n");
-        }
-        else if (pid == 0) {
-            execl("/usr/bin/tinypaint", "tinypaint", filename, (char *)NULL);
-            printf("exec() failed\n");
-        }
-
-        // free the memory allocated to the filename
-        g_free(filename);
-    }
-
-    gtk_widget_destroy(GTK_WIDGET(openDialog));
-
-    g_object_unref(builder);
-}
 
 /* Catches the keystrokes in the EditorWindow */
-int editor_window_keyPress(EditorWindow *self, GdkEventKey *event) {
+int device_keyPress(EditorWindow *self, GdkEventKey *event) {
     if (event->keyval == 122 && event->state == 20) {  // (CTRL+Z) undo
         image_editor_undo(&(self->m_editor));
-        editor_window_canvas_refresh(self);
+        canvas_refresh(self);
     }
     else if (event->keyval == 90 && event->state == 21) {  // (CTRL+LSHIFT+Z) redo
         image_editor_redo(&(self->m_editor));
-        editor_window_canvas_refresh(self);
+        canvas_refresh(self);
     }
     else if (event->keyval == 113 && event->state == 20) {  // (CTRL+Q) quit
+        // will trigger the editor_window_quit method automatically.
         gtk_window_close(GTK_WINDOW(self));
     }
     else if (event->keyval == 110 && event->state == 20) {  // (CTRL+N) new
-        editor_window_start_new();
+        file_new(self);
     }
     else if (event->keyval == 111 && event->state == 20) {  // (CTRL+O) open
-        editor_window_open_new();
+        file_open(self);
     }
     else if (event->keyval == 115 && event->state == 20) {  // (CTRL+S) save
-        editor_window_save(self);
+        file_save(self);
     }
 
-    // return false, i.e. other signals can interupt this one (to enable multi-key combinations)
+    /* return false, i.e. other signals can interupt this one
+    (to enable multi-key combinations) */
     return 0;
 }
 
-
-
-//
-// CANVAS interaction related methods
-//
-
 /* Fires when the mouse is held down on the canvas */
-int canvas_mouseHold(EditorWindow *self) {
+int device_mouseHold(EditorWindow *self) {
     image_editor_stroke_hold(&(self->m_editor), self->m_mousePosX, self->m_mousePosY);
-    editor_window_canvas_refresh(self);
+    canvas_refresh(self);
     return self->m_mouseDown;  // will uninstall itself when the mouse is lifted
 }
 
 /* Fires when the mouse is moved on the canvas */
-void canvas_mouseMove(EditorWindow *self, GdkEventMotion *event) {
+void device_mouseMove(EditorWindow *self, GdkEventMotion *event) {
     if (self->m_mouseDown) {
         // update the mouse tracking parameters
         self->m_mousePosX_prev = self->m_mousePosX;
@@ -257,12 +226,12 @@ void canvas_mouseMove(EditorWindow *self, GdkEventMotion *event) {
         self->m_mousePosY = event->y;
 
         image_editor_stroke_move(&(self->m_editor), self->m_mousePosX, self->m_mousePosY, self->m_mousePosX_prev, self->m_mousePosY_prev);
-        editor_window_canvas_refresh(self);
+        canvas_refresh(self);
     }
 }
 
-/* Fires when the mouse is pressed down on the canvas */
-void canvas_mouseDown(EditorWindow *self, GdkEventMotion *event) {
+/* Fires when the mouse is clicked on the canvas */
+void device_mouseClick(EditorWindow *self, GdkEventMotion *event) {
     // update the mouse tracking parameters
     self->m_mouseDown = 1;
     self->m_mousePosX = event->x;
@@ -272,22 +241,22 @@ void canvas_mouseDown(EditorWindow *self, GdkEventMotion *event) {
 
     // install the mouseHold polling function
     if (self->m_editor.m_tool.applyWhenStationary) {
-        g_timeout_add(MOUSE_HOLD_POLL_RATE_MS, (void *)canvas_mouseHold, self);
+        g_timeout_add(MOUSE_HOLD_POLL_RATE_MS, (void *)device_mouseHold, self);
     }
 
     image_editor_stroke_start(&(self->m_editor), self->m_mousePosX, self->m_mousePosY);
-    editor_window_canvas_refresh(self);
+    canvas_refresh(self);
 }
 
-/* Fires when the mouse is depressed on the canvas */
-void canvas_mouseUp(EditorWindow *self, GdkEventMotion *event) {
+/* Fires when the mouse is unclicked on the canvas */
+void device_mouseUnclick(EditorWindow *self, GdkEventMotion *event) {
     // update the mouse tracking parameters
     self->m_mouseDown = 0;
     self->m_mousePosX = event->x;
     self->m_mousePosY = event->y;
 
     image_editor_stroke_end(&(self->m_editor), self->m_mousePosX, self->m_mousePosY);
-    editor_window_canvas_refresh(self);
+    canvas_refresh(self);
 }
 
 
@@ -296,7 +265,7 @@ void canvas_mouseUp(EditorWindow *self, GdkEventMotion *event) {
 // FILTER methods
 //
 
-void apply_saturation_filter(EditorWindow *self) {
+void filter_applySaturation(EditorWindow *self) {
     // get a reference to the builder
     GtkBuilder *builder = gtk_builder_new_from_resource("/tinypaint/ui/filter_dialogs.glade");
 
@@ -307,7 +276,7 @@ void apply_saturation_filter(EditorWindow *self) {
     // run the dialog
     if (gtk_dialog_run(saturationDialog) == GTK_RESPONSE_APPLY) {
         image_editor_apply_saturation_filter(&(self->m_editor), gtk_adjustment_get_value(saturationScale));
-        editor_window_canvas_refresh(self);
+        canvas_refresh(self);
     }
 
     // destroy the dialog widget
@@ -317,7 +286,7 @@ void apply_saturation_filter(EditorWindow *self) {
     g_object_unref(builder);
 }
 
-void apply_channels_filter(EditorWindow *self) {
+void filter_applyChannels(EditorWindow *self) {
     // get a reference to the builder
     GtkBuilder *builder = gtk_builder_new_from_resource("/tinypaint/ui/filter_dialogs.glade");
 
@@ -331,7 +300,7 @@ void apply_channels_filter(EditorWindow *self) {
     if (gtk_dialog_run(channelsDialog) == GTK_RESPONSE_APPLY) {
         image_editor_apply_channels_filter(&(self->m_editor), gtk_adjustment_get_value(rScale),
             gtk_adjustment_get_value(gScale), gtk_adjustment_get_value(bScale));
-            editor_window_canvas_refresh(self);
+            canvas_refresh(self);
     }
 
     // destroy the dialog widget
@@ -341,7 +310,7 @@ void apply_channels_filter(EditorWindow *self) {
     g_object_unref(builder);
 }
 
-void apply_brightness_contrast_filter(EditorWindow *self) {
+void filter_applyBrightnessContrast(EditorWindow *self) {
     // get a reference to the builder
     GtkBuilder *builder = gtk_builder_new_from_resource("/tinypaint/ui/filter_dialogs.glade");
 
@@ -354,7 +323,7 @@ void apply_brightness_contrast_filter(EditorWindow *self) {
     if (gtk_dialog_run(brightnessContrastDialog) == GTK_RESPONSE_APPLY) {
         image_editor_apply_brightness_contrast_filter(&(self->m_editor),
             gtk_adjustment_get_value(brightnessScale), gtk_adjustment_get_value(contrastScale));
-            editor_window_canvas_refresh(self);
+            canvas_refresh(self);
     }
 
     // destroy the dialog widget
@@ -364,7 +333,7 @@ void apply_brightness_contrast_filter(EditorWindow *self) {
     g_object_unref(builder);
 }
 
-void apply_gaussian_blur_filter(EditorWindow *self) {
+void filter_applyGaussianBlur(EditorWindow *self) {
     // get a reference to the builder
     GtkBuilder *builder = gtk_builder_new_from_resource("/tinypaint/ui/filter_dialogs.glade");
 
@@ -375,7 +344,7 @@ void apply_gaussian_blur_filter(EditorWindow *self) {
     // run the dialog
     if (gtk_dialog_run(gaussianBlurDialog) == GTK_RESPONSE_APPLY) {
         image_editor_apply_gaussian_blur_filter(&(self->m_editor), (int)gtk_adjustment_get_value(gaussianBlurRadius));
-        editor_window_canvas_refresh(self);
+        canvas_refresh(self);
     }
 
     // destroy the dialog widget
@@ -385,7 +354,7 @@ void apply_gaussian_blur_filter(EditorWindow *self) {
     g_object_unref(builder);
 }
 
-void apply_motion_blur_filter(EditorWindow *self) {
+void filter_applyMotionBlur(EditorWindow *self) {
     // get a reference to the builder
     GtkBuilder *builder = gtk_builder_new_from_resource("/tinypaint/ui/filter_dialogs.glade");
 
@@ -399,7 +368,7 @@ void apply_motion_blur_filter(EditorWindow *self) {
         image_editor_apply_motion_blur_filter(&(self->m_editor),
             (int)gtk_adjustment_get_value(motionBlurRadius),
             (int)gtk_adjustment_get_value(motionBlurAngle));
-            editor_window_canvas_refresh(self);
+            canvas_refresh(self);
     }
 
     // destroy the dialog widget
@@ -409,7 +378,7 @@ void apply_motion_blur_filter(EditorWindow *self) {
     g_object_unref(builder);
 }
 
-void apply_sharpen_filter(EditorWindow *self) {
+void filter_applySharpen(EditorWindow *self) {
     // get a reference to the builder
     GtkBuilder *builder = gtk_builder_new_from_resource("/tinypaint/ui/filter_dialogs.glade");
 
@@ -420,7 +389,7 @@ void apply_sharpen_filter(EditorWindow *self) {
     // run the dialog
     if (gtk_dialog_run(sharpenDialog) == GTK_RESPONSE_APPLY) {
         image_editor_apply_sharpen_filter(&(self->m_editor), (int)gtk_adjustment_get_value(sharpenRadius));
-        editor_window_canvas_refresh(self);
+        canvas_refresh(self);
     }
 
     // destroy the dialog widget
@@ -430,7 +399,7 @@ void apply_sharpen_filter(EditorWindow *self) {
     g_object_unref(builder);
 }
 
-void apply_posterize_filter(EditorWindow *self) {
+void filter_applyPosterize(EditorWindow *self) {
     // get a reference to the builder
     GtkBuilder *builder = gtk_builder_new_from_resource("/tinypaint/ui/filter_dialogs.glade");
 
@@ -441,7 +410,7 @@ void apply_posterize_filter(EditorWindow *self) {
     // run the dialog
     if (gtk_dialog_run(posterizeDialog) == GTK_RESPONSE_APPLY) {
         image_editor_apply_posterize_filter(&(self->m_editor), (int)gtk_adjustment_get_value(posterizeBins));
-        editor_window_canvas_refresh(self);
+        canvas_refresh(self);
     }
 
     // destroy the dialog widget
@@ -451,7 +420,7 @@ void apply_posterize_filter(EditorWindow *self) {
     g_object_unref(builder);
 }
 
-void apply_threshold_filter(EditorWindow *self) {
+void filter_applyThreshold(EditorWindow *self) {
     // get a reference to the builder
     GtkBuilder *builder = gtk_builder_new_from_resource("/tinypaint/ui/filter_dialogs.glade");
 
@@ -462,7 +431,7 @@ void apply_threshold_filter(EditorWindow *self) {
     // run the dialog
     if (gtk_dialog_run(thresholdDialog) == GTK_RESPONSE_APPLY) {
         image_editor_apply_threshold_filter(&(self->m_editor), gtk_adjustment_get_value(thresholdCutoff));
-        editor_window_canvas_refresh(self);
+        canvas_refresh(self);
     }
 
     // destroy the dialog widget
@@ -475,7 +444,8 @@ void apply_threshold_filter(EditorWindow *self) {
 
 
 //
-//  EDITOR initialization methods
+// EDITORWINDOW setup methods
+// One of these must be called immediately after getting a new EditorWindow instance.
 //
 
 /* Prepares the editorWindow instance based on an input width, height, and color
@@ -489,7 +459,7 @@ void editor_window_canvas_init_from_parameters(EditorWindow *self, int width, in
     image_editor_init_from_parameters(&(self->m_editor), width, height, backgroundColor);
 
     // refresh the canvas to show the initial pixelbuffer
-    editor_window_canvas_refresh(self);
+    canvas_refresh(self);
 }
 
 /* Prepares the editorWindow instance based on an input filepath
@@ -507,22 +477,68 @@ void editor_window_canvas_init_from_file(EditorWindow *self, const char *filepat
     self->m_renderBuffer = malloc(sizeof(unsigned int) * 4 * width * height);
 
     // refresh the canvas to show the initial pixelbuffer
-    editor_window_canvas_refresh(self);
+    canvas_refresh(self);
 }
 
-/* Initializies the instance of EditorWindow */
+
+
+//
+// EDITORWINDOW lifecycle management
+// These manage the editor windows life cycle, from initialization to destruction.
+//
+
+/* Returns a new instance of EditorWindow */
+EditorWindow* editor_window_new () {
+    return g_object_new (EDITOR_WINDOW_TYPE_WINDOW, NULL);
+}
+
+/* Frees the dynamically allocated memory associated with this window,
+then destroys itself. */
+void editor_window_destroy(EditorWindow *self) {
+    image_editor_destroy(&(self->m_editor));
+    free(self->m_renderBuffer);
+    gtk_widget_destroy(GTK_WIDGET(self));
+}
+
+/* Asks the user if they want to save before quitting */
+void editor_window_quit(EditorWindow *self) {
+    // get a reference to the builder
+    GtkBuilder *builder = gtk_builder_new_from_resource("/tinypaint/ui/io_dialogs.glade");
+
+    // get an instance of quit from it
+    GtkDialog *quitConfirmationDialog =
+        GTK_DIALOG(gtk_builder_get_object(builder, "quitConfirmationDialog"));
+
+    // run the dialog, then destroy it
+    int response = gtk_dialog_run(quitConfirmationDialog);
+    gtk_widget_destroy(GTK_WIDGET(quitConfirmationDialog));
+
+    // and take action based on the response
+    if (response == GTK_RESPONSE_YES) {
+        file_save(self);
+    }
+
+    // destroy the editor
+    image_editor_destroy(&(self->m_editor));
+
+    // then finally destroy this instance
+    gtk_widget_destroy(GTK_WIDGET(self));
+}
+
+/* Initializes the EditorWindow class */
+static void editor_window_class_init (EditorWindowClass *class) {
+    // GObject property stuff would go here...
+}
+
+/* Initializies the instance of EditorWindow. This is called automatically when
+you request a new EditorWindow instance with 'editor_window_new()''. */
 static void editor_window_init (EditorWindow *self) {
     //
     // PARENT WINDOW setup
     //
-
-    // set the window title and properties
     gtk_window_set_title(GTK_WINDOW(self), "TinyPaint");
     gtk_window_set_resizable(GTK_WINDOW(self), 0);
-
-    // set the close and key-event signal overide
     g_signal_connect(self, "delete-event", (GCallback)editor_window_quit, NULL);
-    g_signal_connect(self, "key-press-event", (GCallback)editor_window_keyPress, NULL);
 
 
 
@@ -571,15 +587,15 @@ static void editor_window_init (EditorWindow *self) {
 
     // menu NEW
     GtkMenuItem *newButton = GTK_MENU_ITEM(gtk_builder_get_object(builder, "newButton"));
-    g_signal_connect(newButton, "activate", (GCallback)editor_window_start_new, NULL);
+    g_signal_connect_swapped(newButton, "activate", (GCallback)file_new, self);
 
     // menu OPEN
     GtkMenuItem *openButton = GTK_MENU_ITEM(gtk_builder_get_object(builder, "openButton"));
-    g_signal_connect(openButton, "activate", (GCallback)editor_window_open_new, NULL);
+    g_signal_connect_swapped(openButton, "activate", (GCallback)file_open, self);
 
     // menu SAVE
     GtkMenuItem *saveButton = GTK_MENU_ITEM(gtk_builder_get_object(builder, "saveButton"));
-    g_signal_connect_swapped(saveButton, "activate", (GCallback)editor_window_save, self);
+    g_signal_connect_swapped(saveButton, "activate", (GCallback)file_save, self);
 
     // menu QUIT
     GtkMenuItem *quitButton = GTK_MENU_ITEM(gtk_builder_get_object(builder, "quitButton"));
@@ -588,54 +604,54 @@ static void editor_window_init (EditorWindow *self) {
     // menu UNDO
     GtkMenuItem *undoButton = GTK_MENU_ITEM(gtk_builder_get_object(builder, "undoButton"));
     g_signal_connect_swapped(undoButton, "activate", (GCallback)image_editor_undo, &(self->m_editor));
-    g_signal_connect_swapped(undoButton, "activate", (GCallback)editor_window_canvas_refresh, self);
+    g_signal_connect_swapped(undoButton, "activate", (GCallback)canvas_refresh, self);
 
     // menu REDO
     GtkMenuItem *redoButton = GTK_MENU_ITEM(gtk_builder_get_object(builder, "redoButton"));
     g_signal_connect_swapped(redoButton, "activate", (GCallback)image_editor_redo, &(self->m_editor));
-    g_signal_connect_swapped(redoButton, "activate", (GCallback)editor_window_canvas_refresh, self);
+    g_signal_connect_swapped(redoButton, "activate", (GCallback)canvas_refresh, self);
 
     // menu SATURATION
     GtkMenuItem *saturationButton = GTK_MENU_ITEM(gtk_builder_get_object(builder, "saturationButton"));
-    g_signal_connect_swapped(saturationButton, "activate", (GCallback)apply_saturation_filter, self);
+    g_signal_connect_swapped(saturationButton, "activate", (GCallback)filter_applySaturation, self);
 
     // menu CHANNELS
     GtkMenuItem *channelsButton = GTK_MENU_ITEM(gtk_builder_get_object(builder, "channelsButton"));
-    g_signal_connect_swapped(channelsButton, "activate", (GCallback)apply_channels_filter, self);
+    g_signal_connect_swapped(channelsButton, "activate", (GCallback)filter_applyChannels, self);
 
     // menu BRIGHTNESS_CONTRAST
     GtkMenuItem *brightnessContrastButton = GTK_MENU_ITEM(gtk_builder_get_object(builder, "brightnessContrastButton"));
-    g_signal_connect_swapped(brightnessContrastButton, "activate", (GCallback)apply_brightness_contrast_filter, self);
+    g_signal_connect_swapped(brightnessContrastButton, "activate", (GCallback)filter_applyBrightnessContrast, self);
 
     // menu INVERT
     GtkMenuItem *invertButton = GTK_MENU_ITEM(gtk_builder_get_object(builder, "invertButton"));
     g_signal_connect_swapped(invertButton, "activate", (GCallback)image_editor_apply_invert_filter, &(self->m_editor));
-    g_signal_connect_swapped(invertButton, "activate", (GCallback)editor_window_canvas_refresh, self);
+    g_signal_connect_swapped(invertButton, "activate", (GCallback)canvas_refresh, self);
 
     // menu GAUSSIAN_BLUR
     GtkMenuItem *gaussianBlurButton = GTK_MENU_ITEM(gtk_builder_get_object(builder, "gaussianBlurButton"));
-    g_signal_connect_swapped(gaussianBlurButton, "activate", (GCallback)apply_gaussian_blur_filter, self);
+    g_signal_connect_swapped(gaussianBlurButton, "activate", (GCallback)filter_applyGaussianBlur, self);
 
     // menu MOTION_BLUR
     GtkMenuItem *motionBlurButton = GTK_MENU_ITEM(gtk_builder_get_object(builder, "motionBlurButton"));
-    g_signal_connect_swapped(motionBlurButton, "activate", (GCallback)apply_motion_blur_filter, self);
+    g_signal_connect_swapped(motionBlurButton, "activate", (GCallback)filter_applyMotionBlur, self);
 
     // menu SHARPEN
     GtkMenuItem *sharpenButton = GTK_MENU_ITEM(gtk_builder_get_object(builder, "sharpenButton"));
-    g_signal_connect_swapped(sharpenButton, "activate", (GCallback)apply_sharpen_filter, self);
+    g_signal_connect_swapped(sharpenButton, "activate", (GCallback)filter_applySharpen, self);
 
     // menu EDGE DETECT
     GtkMenuItem *edgeDetectButton = GTK_MENU_ITEM(gtk_builder_get_object(builder, "edgeDetectButton"));
     g_signal_connect_swapped(edgeDetectButton, "activate", (GCallback)image_editor_apply_edge_detect_filter, &(self->m_editor));
-    g_signal_connect_swapped(edgeDetectButton, "activate", (GCallback)editor_window_canvas_refresh, self);
+    g_signal_connect_swapped(edgeDetectButton, "activate", (GCallback)canvas_refresh, self);
 
     // menu POSTERIZE
     GtkMenuItem *posterizeButton = GTK_MENU_ITEM(gtk_builder_get_object(builder, "posterizeButton"));
-    g_signal_connect_swapped(posterizeButton, "activate", (GCallback)apply_posterize_filter, self);
+    g_signal_connect_swapped(posterizeButton, "activate", (GCallback)filter_applyPosterize, self);
 
     // menu THRESHOLD
     GtkMenuItem *thresholdButton = GTK_MENU_ITEM(gtk_builder_get_object(builder, "thresholdButton"));
-    g_signal_connect_swapped(thresholdButton, "activate", (GCallback)apply_threshold_filter, self);
+    g_signal_connect_swapped(thresholdButton, "activate", (GCallback)filter_applyThreshold, self);
 
     // menu ABOUT
     GtkMenuItem *aboutButton = GTK_MENU_ITEM(gtk_builder_get_object(builder, "aboutButton"));
@@ -647,48 +663,35 @@ static void editor_window_init (EditorWindow *self) {
 
 
     //
-    // CANVAS interaction setup
+    // DEVICE I/O setup
     //
-
-    // get canvasEventBox reference and set their signal handlers
     GtkWidget *canvasEventBox = GTK_WIDGET(gtk_builder_get_object(builder, "canvasEventBox"));
-    g_signal_connect_swapped(canvasEventBox, "button-press-event", (GCallback)canvas_mouseDown, self);
-    g_signal_connect_swapped(canvasEventBox, "motion-notify-event", (GCallback)canvas_mouseMove, self);
-    g_signal_connect_swapped(canvasEventBox, "button-release-event", (GCallback)canvas_mouseUp, self);
-
-
-
-    //
-    // CANVAS rendering setup
-    //
-
-    // get canvas reference (and save it as instance parameter) and set its signal handler
-    self->m_canvasGLArea = GTK_GL_AREA(gtk_builder_get_object(builder, "canvasGLArea"));
-    g_signal_connect_swapped(self->m_canvasGLArea, "render", (GCallback)editor_window_canvas_render, self);
+    g_signal_connect_swapped(canvasEventBox, "button-press-event", (GCallback)device_mouseClick, self);
+    g_signal_connect_swapped(canvasEventBox, "motion-notify-event", (GCallback)device_mouseMove, self);
+    g_signal_connect_swapped(canvasEventBox, "button-release-event", (GCallback)device_mouseUnclick, self);
+    g_signal_connect(self, "key-press-event", (GCallback)device_keyPress, NULL);
 
 
 
     //
     // MOUSE TRACKING variables setup
     //
-
-    // set the initial mouse pos
     self->m_mousePosX = 0;
     self->m_mousePosY = 0;
     self->m_mousePosX_prev = 0;
     self->m_mousePosY_prev = 0;
     self->m_mouseDown = 0;
 
+
+
+    //
+    // CANVAS RENDER setup
+    //
+    self->m_canvasGLArea = GTK_GL_AREA(gtk_builder_get_object(builder, "canvasGLArea"));
+    g_signal_connect_swapped(self->m_canvasGLArea, "render", (GCallback)canvas_render, self);
+
+
+
     // finally, unref the builder
     g_object_unref(builder);
-}
-
-/* Returns a new instance of EditorWindow */
-EditorWindow* editor_window_new () {
-    return g_object_new (EDITOR_WINDOW_TYPE_WINDOW, NULL);
-}
-
-/* Initializes the EditorWindow class */
-static void editor_window_class_init (EditorWindowClass *class) {
-    // GObject property stuff would go here...
 }

@@ -142,7 +142,7 @@ void* convolution_worker(void *data) {
             // convolve the kernel over the current pixel
             for (int v = 0; v < args->kernel->edgeLength; v++) {
                 for (int u = 0; u < args->kernel->edgeLength; u++) {
-                    if (kernel_get_value(kernel, u, v) >= threshold) {
+                    if (kernel_get_value(args->kernel, u, v) >= threshold) {
                         // calculate the position of the current kernel value on the buffer
                         int u_onBuffer = x + (u - args->kernel->radius);
                         int v_onBuffer = y + (v - args->kernel->radius);
