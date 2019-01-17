@@ -8,6 +8,24 @@ Currently it features a multitude of brushes, filters, undo/redo, and saving/loa
 
 ![TinyPaint screenshot](https://i.imgur.com/CrieDeR.png)
 
+## Features
+
+##### Brushes
+
+todo: pictures here
+
+##### Filters
+
+todo: pictures here
+
+##### Keyboard Shortcuts
+
+todo: pictures here
+
+##### Image IO
+
+todo: pictures here
+
 ## Dependencies
 
 TinyPaint requires the following packages be installed
@@ -57,13 +75,4 @@ $ sudo make uninstall
 ## To-do
 
 ##### Update OpenGL drawing method
-Currently, TinyPaint uses the rather archaic `glDrawPixels()` function for drawing the pixels to the screen via OpenGL. Eventually I would like to update this to the more modern textured quad, fragment/vertex shader approach.
-
-##### Improve filter application times
-I would also like to implement multi-threading during filter application. The convolution filters especially would benefit from some parallelization I think.
-
-##### Make `kernel` a struct type
-Include the radius and edgeLength as members, and make `kernel_new`, `kernel_destroy`, and `kernel_set_value(x, y)` methods.
-
-##### General cleanup
-Simplify messy code, clarify variable names, write more thorough comments, etc etc
+Currently, TinyPaint uses the rather archaic `glDrawPixels()` function for drawing the pixels to the screen via OpenGL. Eventually I would like to update this to the more modern textured quad/fragment/vertex shader approach.
