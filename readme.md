@@ -1,6 +1,6 @@
 # TinyPaint
 
-TinyPaint is a lightweight painting and image editing application for Unix, written in C. (The compiled executable is less than 350 kilobytes)!
+TinyPaint is a lightweight painting and image editing application for Unix, written in C. (The compiled executable is less than 300 kilobytes)!
 
 I wrote it as an exercise in UI programming, and to better familiarize myself with the Gtk, Gdk, and Glib libraries.
 
