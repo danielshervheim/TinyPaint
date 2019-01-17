@@ -85,3 +85,11 @@ install: $(BIN)
 uninstall:
 	rm -rf /usr/bin/$(BIN)
 	rm -rf /usr/share/applications/TinyPaint.desktop
+
+
+
+# STATS rules
+# prints out stats about the project
+
+src_stats:
+	cd src; ls | xargs wc -l; cd ..
