@@ -157,8 +157,6 @@ $ sudo make install
 $ sudo make uninstall
 ```
 
-*(Note: if you just run TinyPaint (i.e. via `$ ./build/tinypaint`), then the New and Open buttons will cause the program to crash. This is because TinyPaint `fork`s a new process for each new file/open file intention, and then `exec`s the tinypaint executable from the install directory, hence it must be installed to work).*
-
 <a name="todo"></a>
 ## To-do
 
