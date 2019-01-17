@@ -131,7 +131,7 @@ TinyPaint expects the lodepng library to be in a specific folder. It also uses t
 `make get_dependencies` and `make compile_resources` **must** be run before `make`!
 
 ```
-$ git clone XXX
+$ git clone https://github.com/danielshervheim/TinyPaint.git
 $ cd tinypaint
 $ make get_dependencies
 $ make compile_resources
