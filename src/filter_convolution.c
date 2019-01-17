@@ -135,22 +135,28 @@ void* convolution_worker(void *data) {
             // accumulator
             GdkRGBA accum = {0.0, 0.0, 0.0, 1.0};
 
+            /* threshold factor to determine how much a kernel would contribute for
+            us to consider using it. */
+            double threshold = 0.01;
+
             // convolve the kernel over the current pixel
             for (int v = 0; v < args->kernel->edgeLength; v++) {
                 for (int u = 0; u < args->kernel->edgeLength; u++) {
-                    // calculate the position of the current kernel value on the buffer
-                    int u_onBuffer = x + (u - args->kernel->radius);
-                    int v_onBuffer = y + (v - args->kernel->radius);
+                    if (kernel_get_value(kernel, u, v) >= threshold) {
+                        // calculate the position of the current kernel value on the buffer
+                        int u_onBuffer = x + (u - args->kernel->radius);
+                        int v_onBuffer = y + (v - args->kernel->radius);
 
-                    // and clamp it to be within the buffer bounds
-                    u_onBuffer = int_clamp(u_onBuffer, 0, w);
-                    v_onBuffer = int_clamp(v_onBuffer, 0, h);
+                        // and clamp it to be within the buffer bounds
+                        u_onBuffer = int_clamp(u_onBuffer, 0, w);
+                        v_onBuffer = int_clamp(v_onBuffer, 0, h);
 
-                    // calculate the value of the current pixel convolved
-                    GdkRGBA currentValue = GdkRGBA_scale(pixelbuffer_get_pixel(args->read,
-                        u_onBuffer, v_onBuffer), kernel_get_value(args->kernel, u, v));
+                        // calculate the value of the current pixel convolved
+                        GdkRGBA currentValue = GdkRGBA_scale(pixelbuffer_get_pixel(args->read,
+                            u_onBuffer, v_onBuffer), kernel_get_value(args->kernel, u, v));
 
-                    accum = GdkRGBA_add(accum, currentValue);
+                        accum = GdkRGBA_add(accum, currentValue);
+                    }
                 }
             }
 
