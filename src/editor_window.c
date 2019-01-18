@@ -8,7 +8,6 @@
 
 #include "image_editor.h"
 #include "pixel_buffer.h"
-#include "tinypaint_app.h"
 #include "tools_window.h"
 #include "utilities.h"
 
@@ -95,14 +94,9 @@ void canvas_refresh(EditorWindow *self) {
 
 /* Opens a new EditorWindow under the current TinyPaintApp instance. */
 void file_new(EditorWindow *self) {
-    GtkApplication *parent = gtk_window_get_application(GTK_WINDOW(self));
-
-    if (parent != NULL) {
-        tinypaint_app_new_editor_window(parent);
-    }
-    else {
-        printf("file_new() ERROR: this EditorWindow has no application parent.\n");
-    }
+	/* Emits the "new" signal to alert the TinyPaintApp parent that a
+	new editor window should be added. */
+    g_signal_emit_by_name(self, "editor-new");
 }
 
 /* Opens the file as a new EditorWindow under the current TinyPaintApp instance. */
@@ -118,14 +112,9 @@ void file_open(EditorWindow *self) {
         // get file string
         gchar *filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(openDialog));
 
-        GtkApplication *parent = gtk_window_get_application(GTK_WINDOW(self));
-
-        if (parent != NULL) {
-            tinypaint_app_new_editor_window_from_file(parent, filename);
-        }
-        else {
-            printf("file_open() RROR: this EditorWindow has no application parent.\n");
-        }
+        /* emit the open signal and pass the filename as a parameter to be
+        caught by the TinyPaintApp parent instance. */
+		g_signal_emit_by_name(self, "editor-open", filename);
 
         // free the memory allocated to the filename
         g_free(filename);
@@ -527,7 +516,15 @@ void editor_window_quit(EditorWindow *self) {
 
 /* Initializes the EditorWindow class */
 static void editor_window_class_init (EditorWindowClass *class) {
-    // GObject property stuff would go here...
+	/* signal to alert this windows parent app that a new editor window should
+	be spawned (from a filepath). */
+  	g_signal_new("editor-open", EDITOR_WINDOW_TYPE_WINDOW, G_SIGNAL_RUN_FIRST,
+  		0, NULL, NULL, NULL, G_TYPE_NONE, 1, G_TYPE_POINTER);
+
+  	/* signal to alert this windows parent app that a new editor window should
+	be spawned. */
+  	g_signal_new("editor-new", EDITOR_WINDOW_TYPE_WINDOW, G_SIGNAL_RUN_FIRST,
+  		0, NULL, NULL, NULL, G_TYPE_NONE, 0);
 }
 
 /* Initializies the instance of EditorWindow. This is called automatically when

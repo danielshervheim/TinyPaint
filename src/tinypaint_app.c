@@ -22,12 +22,21 @@ G_DEFINE_TYPE(TinyPaintApp, tinypaint_app, GTK_TYPE_APPLICATION);
 
 
 //
+// Function headers
+// (necessary because each one needs to know about the other to install signal handlers)
+//
+void add_editor_window(GtkApplication *self);
+void add_editor_window_from_file(GtkApplication *self, const char *filepath);
+
+
+
+//
 // TINYPAINT_APP methods
 //
 
 /* Creates a new editorWindow based on parameters from a newImageDialog and
 adds it to the application. */
-void tinypaint_app_new_editor_window(GtkApplication *self) {
+void add_editor_window(GtkApplication *self) {
     NewImageDialog *newImageDialog = new_image_dialog_new();
 
     if (gtk_dialog_run(GTK_DIALOG(newImageDialog)) == GTK_RESPONSE_OK) {
@@ -37,6 +46,10 @@ void tinypaint_app_new_editor_window(GtkApplication *self) {
 
         EditorWindow *editorWindow = editor_window_new();
         editor_window_canvas_init_from_parameters(editorWindow, width, height, color);
+        
+        g_signal_connect_swapped(editorWindow, "editor-open", (GCallback)add_editor_window_from_file, self);
+        g_signal_connect_swapped(editorWindow, "editor-new", (GCallback)add_editor_window, self);
+
         gtk_application_add_window(self, GTK_WINDOW(editorWindow));
         gtk_window_present(GTK_WINDOW(editorWindow));
     }
@@ -45,9 +58,13 @@ void tinypaint_app_new_editor_window(GtkApplication *self) {
 }
 
 /* Creates a new editorWindow from the file, and adds it to the application. */
-void tinypaint_app_new_editor_window_from_file(GtkApplication *self, const char *filepath) {
+void add_editor_window_from_file(GtkApplication *self, const char *filepath) {
     EditorWindow *editorWindow = editor_window_new();
     editor_window_canvas_init_from_file(editorWindow, filepath);
+
+    g_signal_connect_swapped(editorWindow, "editor-open", (GCallback)add_editor_window_from_file, self);
+    g_signal_connect_swapped(editorWindow, "editor-new", (GCallback)add_editor_window, self);
+
     gtk_application_add_window(self, GTK_WINDOW(editorWindow));
     gtk_window_present(GTK_WINDOW(editorWindow));
 }
@@ -63,7 +80,7 @@ static void tinypaint_app_init (TinyPaintApp *self) { }
 
 /* Fires when the user opens TinyPaint without arguments (i.e. from the launcher) */
 static void tinypaint_app_activate(GApplication *app) {
-    tinypaint_app_new_editor_window(GTK_APPLICATION(app));
+    add_editor_window(GTK_APPLICATION(app));
 }
 
 /* Fires when the user opens TinyPaint with arguments (i.e. right click->open in) */
@@ -72,7 +89,7 @@ static void tinypaint_app_open (GApplication *app, GFile **files, gint n_files, 
     for (int i = 0; i < n_files; i++) {
         // assumes the filepath is valid (i.e. that input checking is done via gui).
         char *filepath = g_file_get_path(files[i]);
-        tinypaint_app_new_editor_window_from_file(GTK_APPLICATION(app), filepath);
+        add_editor_window_from_file(GTK_APPLICATION(app), filepath);
     }
 }
 
