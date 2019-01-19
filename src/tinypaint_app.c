@@ -46,7 +46,7 @@ void add_editor_window(GtkApplication *self) {
 
         EditorWindow *editorWindow = editor_window_new();
         editor_window_canvas_init_from_parameters(editorWindow, width, height, color);
-        
+
         g_signal_connect_swapped(editorWindow, "editor-open", (GCallback)add_editor_window_from_file, self);
         g_signal_connect_swapped(editorWindow, "editor-new", (GCallback)add_editor_window, self);
 
@@ -101,6 +101,6 @@ static void tinypaint_app_class_init(TinyPaintAppClass *class) {
 
 TinyPaintApp* tinypaint_app_new(void) {
     return g_object_new(TINYPAINT_APP_TYPE_APPLICATION,
-                        "application-id", "danshervheim.tinypaint",
+                        "application-id", "com.danielshervheim.tinypaint",
                         "flags", G_APPLICATION_HANDLES_OPEN, NULL);
 }

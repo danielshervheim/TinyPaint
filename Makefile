@@ -80,11 +80,11 @@ clean: clean_build clean_dependencies clean_resources
 
 install: $(BIN)
 	cp build/$(BIN) /usr/bin/
-	cp data/desktop/TinyPaint.desktop /usr/share/applications/
+	cp data/desktop/com.danielshervheim.tinypaint.desktop /usr/share/applications/
 
 uninstall:
 	rm -rf /usr/bin/$(BIN)
-	rm -rf /usr/share/applications/TinyPaint.desktop
+	rm -rf /usr/share/applications/com.danielshervheim.tinypaint.desktop
 
 
 

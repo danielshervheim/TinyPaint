@@ -5,4 +5,5 @@ Type=Application
 Terminal=false
 Exec=/usr/bin/tinypaint %F
 Name=TinyPaint
+Name[en_US]=TinyPaint
 MimeType=image/png
