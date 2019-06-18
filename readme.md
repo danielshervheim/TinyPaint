@@ -19,7 +19,6 @@ Currently it features a multitude of brushes, filters, undo/redo, and saving/loa
     - [Building](#building)
     - [Installing](#installing)
     - [Uninstalling](#uninstalling)
-- [Todo](#todo)
 
 <a name="features"></a>
 ## Features
@@ -156,9 +155,3 @@ $ sudo make install
 ```
 $ sudo make uninstall
 ```
-
-<a name="todo"></a>
-## To-do
-
-##### Update OpenGL drawing method
-Currently, TinyPaint uses the rather archaic `glDrawPixels()` function for drawing the pixels to the screen via OpenGL. Eventually I would like to update this to the more modern textured quad/fragment/vertex shader approach.
