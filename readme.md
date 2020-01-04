@@ -21,7 +21,7 @@ Currently it features a multitude of brushes, filters, undo/redo, and saving/loa
 ## Features
 
 <a name="brushes"></a>
-#### Brushes
+### Brushes
 
 Pen
 
@@ -48,7 +48,7 @@ Eraser
 ![eraser](images/tools/erase.png)
 
 <a name="filters"></a>
-#### Filters
+### Filters
 
 Saturation
 
@@ -91,19 +91,16 @@ Threshold
 ![threshold](images/filters/threshold.png)
 
 <a name="keyboardshortcuts"></a>
-#### Keyboard Shortcuts
+### Keyboard Shortcuts
 
-**New Image**: Ctrl+N
-
-**Open Image**: Ctrl+O
-
-**Save Image**: Ctrl+S
-
-**Quit**: Ctrl+Q
-
-**Undo**: Ctrl+Z
-
-**Redo**: Ctrl+Shift+Z
+| Shortcut     | Function   |
+| ------------ | ---------- |
+| Ctrl+N       | New image  |
+| Ctrl+O       | Open image |
+| Ctrl+S       | Save image |
+| Ctrl+Q       | Quit       |
+| Ctrl+Z       | Undo       |
+| Ctrl+Shift+Z | Redo       |
 
 <a name="dependencies"></a>
 ## Dependencies
