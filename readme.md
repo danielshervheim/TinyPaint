@@ -1,12 +1,12 @@
 # TinyPaint
 
-TinyPaint is a lightweight painting and image editing application for Unix, written in C. (The compiled executable is less than 300 kilobytes)!
+TinyPaint is a lightweight painting and image editing application for Unix systems, written in C. (The compiled executable is less than 300 kilobytes)!
 
 I wrote it as an exercise in UI programming, and to better familiarize myself with the Gtk, Gdk, and Glib libraries.
 
 Currently it features a multitude of brushes, filters, undo/redo, and saving/loading images in png format.
 
-![TinyPaint screenshot](https://i.imgur.com/CrieDeR.png)
+![TinyPaint screenshot](images/tinypaint.png)
 
 ## Contents
 
@@ -16,9 +16,6 @@ Currently it features a multitude of brushes, filters, undo/redo, and saving/loa
     - [Keyboard Shortcuts](#keyboardshortcuts)
 - [Dependencies](#dependencies)
 - [Compiling](#compiling)
-    - [Building](#building)
-    - [Installing](#installing)
-    - [Uninstalling](#uninstalling)
 
 <a name="features"></a>
 ## Features
@@ -28,70 +25,70 @@ Currently it features a multitude of brushes, filters, undo/redo, and saving/loa
 
 Pen
 
-![pen](https://i.imgur.com/YcIyjX2.png)
+![pen](images/tools/pen.png)
 
 Brush
 
-![brush](https://i.imgur.com/Ly2U1h3.png)
+![brush](images/tools/brush.png)
 
 Marker
 
-![marker](https://i.imgur.com/JSwkGIX.png)
+![marker](images/tools/marker.png)
 
 Airbrush
 
-![airbrush](https://i.imgur.com/mUJrzzZ.png)
+![airbrush](images/tools/airbrush.png)
 
 Flood Fill
 
-![flood fill](https://i.imgur.com/pY4mipe.png)
+![flood fill](images/tools/floodfill.png)
 
 Eraser
 
-![eraser](https://i.imgur.com/y9dNTjl.png)
+![eraser](images/tools/erase.png)
 
 <a name="filters"></a>
 #### Filters
 
 Saturation
 
-![saturation](https://i.imgur.com/a490B7Z.png)
+![saturation](images/filters/saturate.png)
 
 Channels
 
-![channels](https://i.imgur.com/NQqbb99.png)
+![channels](images/filters/channels.png)
 
 Invert
 
-![invert](https://i.imgur.com/jjtbpCh.png)
+![invert](images/filters/invert.png)
 
 Brightness / Contrast
 
-![brightnesscontrast](https://i.imgur.com/VY9Oort.png)
+![brightnesscontrast](images/filters/bc.png)
 
 Gaussian Blur
 
-![gaussianblur](https://i.imgur.com/I4ZUrcv.png)
+![gaussianblur](images/filters/gaussian.png)
 
 Motion Blur
 
-![motionblur](https://i.imgur.com/dJBZ5pN.png)
+![motionblur](images/filters/motion.png)
 
 Sharpen
 
-![sharpen](https://i.imgur.com/grHOXWD.png)
+![sharpen](images/filters/sharpen.png)
 
 Edge Detection
 
-![edgedetection](https://i.imgur.com/BlzKl5T.png)
+![edgedetection](images/filters/edgedetect.png)
 
 Posterize
 
-![posterize](https://i.imgur.com/quzt1qY.png)
+![posterize](images/filters/posterize.png)
 
 Threshold
 
-![threshold](https://i.imgur.com/aFZBgSx.png)
+![threshold](images/filters/threshold.png)
 
 <a name="keyboardshortcuts"></a>
 #### Keyboard Shortcuts
@@ -122,36 +119,18 @@ TinyPaint also depends on the [lodepng](https://lodev.org/lodepng/) library, by 
 <a name="compiling"></a>
 ## Compiling
 
-<a name="building"></a>
-#### Building
-
 TinyPaint expects the lodepng library to be in a specific folder. It also uses the Glib Gresource library to compile the icons and ui definitions into linkable source code. Therefore, **the order you run the make targets in is important**!
 
-`make get_dependencies` and `make compile_resources` **must** be run before `make`!
+
+You **must** run `make get_dependencies` and `make compile_resources`  before you run `make`!
 
 ```
 $ git clone https://github.com/danielshervheim/TinyPaint.git
-$ cd tinypaint
+$ cd TinyPaint/core
 $ make get_dependencies
 $ make compile_resources
 $ make
 $ ./build/tinypaint
 ```
 
-<a name="installing"></a>
-#### Installing
-
-(build first)
-
-```
-$ sudo make install
-```
-
-<a name="uninstalling"></a>
-#### Uninstalling
-
-(install first)
-
-```
-$ sudo make uninstall
-```
+TinyPaint also loads shaders at runtime from the `data/shaders` directory, so you must be in the `core`  directory when you run, otherwise the program won't be able to find the shaders.
