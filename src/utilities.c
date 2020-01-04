@@ -178,16 +178,14 @@ int string_ends_with(const char *string, const char *end) {
 
 // Source:
 // http://schabby.de/shader-loading/
-int loadAndCompileShader(char* filename, int shaderType)
-{
+int load_and_compile_shader(char* filename, int shaderType) {
 	// handle will be non-zero if succefully created.
 	int handle = glCreateShader(shaderType);
 
 	// load code from file into string
     int len;
-	char* code = loadFile(filename, &len);
-    if (code == NULL)
-    {
+	char* code = load_file(filename, &len);
+    if (code == NULL) {
         // ERROR.
         return -1;
     }
@@ -204,10 +202,9 @@ int loadAndCompileShader(char* filename, int shaderType)
     glGetShaderiv(handle, GL_COMPILE_STATUS, &shaderStatus);
 
 	// check whether compilation was successful
-	if(shaderStatus == GL_FALSE)
-	{
-        char msg[10000];
-        glGetShaderInfoLog(handle, 10000, NULL, &msg);
+	if(shaderStatus == GL_FALSE) {
+        char msg[512];
+        glGetShaderInfoLog(handle, 512, NULL, &msg);
         printf("%s\n", msg);
         return -1;
 	}
@@ -218,20 +215,16 @@ int loadAndCompileShader(char* filename, int shaderType)
 
 // Source:
 // https://stackoverflow.com/a/2029227
-char* loadFile(char* filename, int* length)
-{
+char* load_file(char* filename, int* length) {
     char *source = NULL;
     FILE *fp = fopen(filename, "r");
 
-    if (fp != NULL)
-    {
+    if (fp != NULL) {
         // Go to the end of the file.
-        if (fseek(fp, 0L, SEEK_END) == 0)
-        {
+        if (fseek(fp, 0L, SEEK_END) == 0) {
             // Get the size of the file.
             long bufsize = ftell(fp);
-            if (bufsize == -1)
-            {
+            if (bufsize == -1) {
                 // ERROR.
                 return -1;
             }
@@ -240,20 +233,17 @@ char* loadFile(char* filename, int* length)
             source = malloc(sizeof(char) * (bufsize + 1));
 
             // Go back to the start of the file.
-            if (fseek(fp, 0L, SEEK_SET) != 0)
-            {
+            if (fseek(fp, 0L, SEEK_SET) != 0) {
                 // ERROR.
                 return -1;
             }
 
             // Read the entire file into memory.
             size_t newLen = fread(source, sizeof(char), bufsize, fp);
-            if (ferror(fp) != 0)
-            {
+            if (ferror(fp) != 0) {
                 fputs("Error reading file", stderr);
             }
-            else
-            {
+            else {
                 source[newLen++] = '\0';  // Just to be safe.
                 *length = newLen;
                 return source;

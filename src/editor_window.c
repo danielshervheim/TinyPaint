@@ -45,9 +45,9 @@ struct _EditorWindow {
     int m_mousePosY_prev;
     int m_mouseDown;
 
-    int m_programId;
-    GLuint m_vbo;
+    // The VAO for the quad, and the shader to render it.
     GLuint m_vao;
+    GLuint m_shader;
 };
 
 G_DEFINE_TYPE(EditorWindow, editor_window, GTK_TYPE_WINDOW);
@@ -59,28 +59,18 @@ G_DEFINE_TYPE(EditorWindow, editor_window, GTK_TYPE_WINDOW);
 //
 
 /* Sets up this GL context for rendering by loading in shaders and setting up buffers. */
-void canvas_realize(EditorWindow *self, GdkGLContext *context)
-{
+void canvas_realize(EditorWindow *self, GdkGLContext *context) {
+    // TODO: hella error checking.
+
     // Make the gl context current.
     gtk_gl_area_make_current(self->m_canvasGLArea);
 
+    // Create a VAO to hold the VBO's.
+    glGenVertexArrays (1, &self->m_vao);
+    glBindVertexArray (self->m_vao);
 
-
-    //
-    // CREATE VAO
-    //
-    GLuint vao;
-    glGenVertexArrays (1, &vao);
-    glBindVertexArray (vao);
-
-
-
-    //
-    // CREATE VBO
-    //
-
-    // Source:
-    // https://open.gl/drawing
+    // Create a VBO to hold our vertices.
+    // source: https://open.gl/drawing
 
     float vertices[] = {
         0.0f,  0.25f,
@@ -88,87 +78,52 @@ void canvas_realize(EditorWindow *self, GdkGLContext *context)
         0.25f, 0.0f
     };
 
-    //
-    // 1 2
-    // 4 3
-    //
-
     GLuint vbo;
     glGenBuffers(1, &vbo);  // Generate 1 buffer
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
-
-
-    //
-    // LOAD SHADERS.
-    //
-
     // Create the shader program.
-    int programId = glCreateProgram();
+    self->m_shader = glCreateProgram();
 
-    // Load and compile the vertex and fragment shaders, and check for errors.
-    int vertShader = loadAndCompileShader("data/shaders/quad.vert", GL_VERTEX_SHADER);
-    int fragShader = loadAndCompileShader("data/shaders/quad.frag", GL_FRAGMENT_SHADER);
-
-    if (vertShader == -1 || fragShader == -1)
-    {
-        printf("ERROR in shader compilation\n");
-    }
+    // Load and compile the vertex and fragment shaders.
+    int vertShader = load_and_compile_shader("data/shaders/quad.vert", GL_VERTEX_SHADER);
+    int fragShader = load_and_compile_shader("data/shaders/quad.frag", GL_FRAGMENT_SHADER);
 
     // Attach the compiled shaders to the program.
-    glAttachShader(programId, vertShader);
-    glAttachShader(programId, fragShader);
+    glAttachShader(self->m_shader, vertShader);
+    glAttachShader(self->m_shader, fragShader);
 
+    // Specify the location of the output color.
+    glBindFragDataLocation(self->m_shader, 0, "outColor");
 
+    // Link the shaders.
+    glLinkProgram(self->m_shader);
 
-    //
-    // SET SHADER VALUES
-    //
-    glBindFragDataLocation(programId, 0, "outColor");
+    // Create a reference to the position attribute.
+    GLint posAttrib = glGetAttribLocation(self->m_shader, "position");
 
-
-
-    //
-    // LINK SHADER
-    //
-    glLinkProgram(programId);
-    glUseProgram(programId);
-
-
-
-    //
-    // SETUP ATTRIBS
-    //
-
-    GLint posAttrib = glGetAttribLocation(programId, "position");
+    // Enable this attribute.
     glEnableVertexAttribArray(posAttrib);
+
+    // Specify how the values in the current VBO are laid out.
     glVertexAttribPointer(posAttrib, 2, GL_FLOAT, GL_FALSE, 0, 0);
-
-
-    self->m_programId = programId;
-    self->m_vbo = vbo;
-    self->m_vao = vao;
 }
 
 /* Rerenders the gtkGLArea associated with this EditorWindow instance, based on its current pixelbuffer */
 void canvas_render(EditorWindow *self, GdkGLContext *context) {
 
-    printf("render\n");
-
-    // make the context of the canvas current
+    // Make the context of the canvas current.
     gdk_gl_context_make_current (context);
 
+    // Clear the background.
     glClearColor (1.0, 0.0, 0.0, 1.0);
     glClear (GL_COLOR_BUFFER_BIT);
 
-    glUseProgram(self->m_programId);
-    /*
-    glBindBuffer(GL_ARRAY_BUFFER, self->m_vbo);
-    GLint posAttrib = glGetAttribLocation(self->m_programId, "position");
-    glEnableVertexAttribArray(posAttrib);
-    glVertexAttribPointer(posAttrib, 2, GL_FLOAT, GL_FALSE, 0, 0);
-    */
+    // Use the specified program which contains our shaders, created in canvas_realize().
+    glUseProgram(self->m_shader);
+
+    // Use the specified vao which contains the quad vertices, created in canvas_realize().
     glBindVertexArray (self->m_vao);
 
     glDrawArrays(GL_TRIANGLES, 0, 3);
