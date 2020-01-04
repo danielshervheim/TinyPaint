@@ -83,6 +83,12 @@ clean: clean_build clean_dependencies clean_resources
 
 
 
+# INSTALL rules
+# I removed these since they were extremely specific to Ubuntu linux.
+# You can still run the program by compiling and running ./build/tinypaint
+
+
+
 # STATS rules
 # prints out stats about the project
 
