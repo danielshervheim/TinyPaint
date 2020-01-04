@@ -20,6 +20,8 @@
 #include <GL/glu.h>
 #endif
 
+#include "gdk/gdkkeysyms.h"
+
 
 
 struct _EditorWindow {
@@ -277,25 +279,28 @@ void file_save(EditorWindow *self) {
 
 /* Catches the keystrokes in the EditorWindow */
 int device_keyPress(EditorWindow *self, GdkEventKey *event) {
-    if (event->keyval == 122 && event->state == 20) {  // (CTRL+Z) undo
+    // Masks out common modifier keys (caps and numlock).
+    GdkModifierType modifiers  = gtk_accelerator_get_default_mod_mask ();
+
+    if (gdk_keyval_to_upper(event->keyval) == GDK_KEY_Z  && (event->state & modifiers) == GDK_CONTROL_MASK) {
         image_editor_undo(&(self->m_editor));
         canvas_refresh(self);
     }
-    else if (event->keyval == 90 && event->state == 21) {  // (CTRL+LSHIFT+Z) redo
+    else if (gdk_keyval_to_upper(event->keyval) == GDK_KEY_Z  && (event->state & modifiers) == (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) {
         image_editor_redo(&(self->m_editor));
         canvas_refresh(self);
     }
-    else if (event->keyval == 113 && event->state == 20) {  // (CTRL+Q) quit
+    if (gdk_keyval_to_upper(event->keyval) == GDK_KEY_Q  && (event->state & modifiers) == GDK_CONTROL_MASK) {
         // will trigger the editor_window_quit method automatically.
         gtk_window_close(GTK_WINDOW(self));
     }
-    else if (event->keyval == 110 && event->state == 20) {  // (CTRL+N) new
+    if (gdk_keyval_to_upper(event->keyval) == GDK_KEY_N  && (event->state & modifiers) == GDK_CONTROL_MASK) {
         file_new(self);
     }
-    else if (event->keyval == 111 && event->state == 20) {  // (CTRL+O) open
+    if (gdk_keyval_to_upper(event->keyval) == GDK_KEY_O  && (event->state & modifiers) == GDK_CONTROL_MASK) {
         file_open(self);
     }
-    else if (event->keyval == 115 && event->state == 20) {  // (CTRL+S) save
+    if (gdk_keyval_to_upper(event->keyval) == GDK_KEY_S  && (event->state & modifiers) == GDK_CONTROL_MASK) {
         file_save(self);
     }
 
