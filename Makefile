@@ -1,14 +1,23 @@
 #
-# Daniel Shervheim © 2019
-# danielshervheim@gmail.com
-# www.github.com/danielshervheim
+# Daniel Shervheim © 2020
+# https://www.danielshervheim.com/
 #
 
 CXX = gcc
 
-LIBS = `pkg-config --cflags --libs gtk+-3.0` -rdynamic -lm -lGL
+LIBS = `pkg-config --cflags --libs gtk+-3.0` -rdynamic -lm
+
+# Append correct GL library based on linux vs osx.
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Darwin)
+	LIBS += -framework OpenGL
+else
+	LIBS += -lGL
+endif
+
 LIBDIRS = -I dependencies -I data/gresource/compiled
-CXXFLAGS = -Wall $(LIBS) $(LIBDIRS)
+# CXXFLAGS = -Wall $(LIBS) $(LIBDIRS)
+CXXFLAGS = -w $(LIBS) $(LIBDIRS)
 BIN = tinypaint
 
 
@@ -71,20 +80,6 @@ clean_build:
 # cleans all the build, dep, resourec files
 
 clean: clean_build clean_dependencies clean_resources
-
-
-
-# INSTALLATION rules
-# copies the executable and .desktop file to their respective destinations
-# (this target most likely will need to be run as sudo)
-
-install: $(BIN)
-	cp build/$(BIN) /usr/bin/
-	cp data/desktop/com.danielshervheim.tinypaint.desktop /usr/share/applications/
-
-uninstall:
-	rm -rf /usr/bin/$(BIN)
-	rm -rf /usr/share/applications/com.danielshervheim.tinypaint.desktop
 
 
 

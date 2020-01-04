@@ -8,6 +8,19 @@
 
 #include <math.h>
 
+// for GL stuff.
+#include "stdio.h"
+#include "stdlib.h"
+#if defined(__APPLE__)
+#include <OpenGL/gl.h>
+#include <OpenGL/glu.h>
+#else
+#include <GL/gl.h>
+#include <GL/glu.h>
+#endif
+
+
+
 //
 // DOUBLE functions
 //
@@ -155,4 +168,99 @@ int string_ends_with(const char *string, const char *end) {
     }
 
     return memcmp(string + (stringlenth - endlength), end, endlength);
+}
+
+
+
+//
+// GL functions.
+//
+
+// Source:
+// http://schabby.de/shader-loading/
+int loadAndCompileShader(char* filename, int shaderType)
+{
+	// handle will be non-zero if succefully created.
+	int handle = glCreateShader(shaderType);
+
+	// load code from file into string
+    int len;
+	char* code = loadFile(filename, &len);
+    if (code == NULL)
+    {
+        // ERROR.
+        return -1;
+    }
+
+    // upload code to OpenGL and associate code with shader
+    const GLchar* shader_ptr = code;
+    glShaderSource(handle, 1, &shader_ptr, NULL);
+
+	// compile source code into binary
+	glCompileShader(handle);
+
+	// acquire compilation status
+	int shaderStatus = 0;
+    glGetShaderiv(handle, GL_COMPILE_STATUS, &shaderStatus);
+
+	// check whether compilation was successful
+	if(shaderStatus == GL_FALSE)
+	{
+        char msg[10000];
+        glGetShaderInfoLog(handle, 10000, NULL, &msg);
+        printf("%s\n", msg);
+        return -1;
+	}
+
+    printf("Loaded and compiled %s\n", filename);
+	return handle;
+}
+
+// Source:
+// https://stackoverflow.com/a/2029227
+char* loadFile(char* filename, int* length)
+{
+    char *source = NULL;
+    FILE *fp = fopen(filename, "r");
+
+    if (fp != NULL)
+    {
+        // Go to the end of the file.
+        if (fseek(fp, 0L, SEEK_END) == 0)
+        {
+            // Get the size of the file.
+            long bufsize = ftell(fp);
+            if (bufsize == -1)
+            {
+                // ERROR.
+                return -1;
+            }
+
+            // Allocate our buffer to that size.
+            source = malloc(sizeof(char) * (bufsize + 1));
+
+            // Go back to the start of the file.
+            if (fseek(fp, 0L, SEEK_SET) != 0)
+            {
+                // ERROR.
+                return -1;
+            }
+
+            // Read the entire file into memory.
+            size_t newLen = fread(source, sizeof(char), bufsize, fp);
+            if (ferror(fp) != 0)
+            {
+                fputs("Error reading file", stderr);
+            }
+            else
+            {
+                source[newLen++] = '\0';  // Just to be safe.
+                *length = newLen;
+                return source;
+            }
+        }
+        fclose(fp);
+    }
+
+    return NULL;
 }

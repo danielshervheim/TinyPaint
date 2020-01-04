@@ -85,4 +85,12 @@ int int_clamp(int value, int min, int max);
 /* Returns whether "string" ends with "end" */
 int string_ends_with(const char *string, const char *end);
 
+//
+// GL functions
+//
+
+int loadAndCompileShader(char* filename, int shaderType);
+
+char* loadFile(char* filename, int* length);
+
 #endif  // UTILITIES_H_

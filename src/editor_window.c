@@ -11,7 +11,14 @@
 #include "tools_window.h"
 #include "utilities.h"
 
-#include <GL/gl.h>  // openGL headers
+// OpenGL headers.
+#if defined(__APPLE__)
+#include <OpenGL/gl.h>
+#include <OpenGL/glu.h>
+#else
+#include <GL/gl.h>
+#include <GL/glu.h>
+#endif
 
 
 
@@ -37,6 +44,10 @@ struct _EditorWindow {
     int m_mousePosX_prev;
     int m_mousePosY_prev;
     int m_mouseDown;
+
+    int m_programId;
+    GLuint m_vbo;
+    GLuint m_vao;
 };
 
 G_DEFINE_TYPE(EditorWindow, editor_window, GTK_TYPE_WINDOW);
@@ -47,15 +58,125 @@ G_DEFINE_TYPE(EditorWindow, editor_window, GTK_TYPE_WINDOW);
 // CANVAS / GL related methods
 //
 
+/* Sets up this GL context for rendering by loading in shaders and setting up buffers. */
+void canvas_realize(EditorWindow *self, GdkGLContext *context)
+{
+    // Make the gl context current.
+    gtk_gl_area_make_current(self->m_canvasGLArea);
+
+
+
+    //
+    // CREATE VAO
+    //
+    GLuint vao;
+    glGenVertexArrays (1, &vao);
+    glBindVertexArray (vao);
+
+
+
+    //
+    // CREATE VBO
+    //
+
+    // Source:
+    // https://open.gl/drawing
+
+    float vertices[] = {
+        0.0f,  0.25f,
+        0.25f, 0.25f,
+        0.25f, 0.0f
+    };
+
+    //
+    // 1 2
+    // 4 3
+    //
+
+    GLuint vbo;
+    glGenBuffers(1, &vbo);  // Generate 1 buffer
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+
+
+    //
+    // LOAD SHADERS.
+    //
+
+    // Create the shader program.
+    int programId = glCreateProgram();
+
+    // Load and compile the vertex and fragment shaders, and check for errors.
+    int vertShader = loadAndCompileShader("data/shaders/quad.vert", GL_VERTEX_SHADER);
+    int fragShader = loadAndCompileShader("data/shaders/quad.frag", GL_FRAGMENT_SHADER);
+
+    if (vertShader == -1 || fragShader == -1)
+    {
+        printf("ERROR in shader compilation\n");
+    }
+
+    // Attach the compiled shaders to the program.
+    glAttachShader(programId, vertShader);
+    glAttachShader(programId, fragShader);
+
+
+
+    //
+    // SET SHADER VALUES
+    //
+    glBindFragDataLocation(programId, 0, "outColor");
+
+
+
+    //
+    // LINK SHADER
+    //
+    glLinkProgram(programId);
+    glUseProgram(programId);
+
+
+
+    //
+    // SETUP ATTRIBS
+    //
+
+    GLint posAttrib = glGetAttribLocation(programId, "position");
+    glEnableVertexAttribArray(posAttrib);
+    glVertexAttribPointer(posAttrib, 2, GL_FLOAT, GL_FALSE, 0, 0);
+
+
+    self->m_programId = programId;
+    self->m_vbo = vbo;
+    self->m_vao = vao;
+}
+
 /* Rerenders the gtkGLArea associated with this EditorWindow instance, based on its current pixelbuffer */
 void canvas_render(EditorWindow *self, GdkGLContext *context) {
+
+    printf("render\n");
+
     // make the context of the canvas current
     gdk_gl_context_make_current (context);
 
-    // clear the buffer
-    glClearColor (0, 0, 0, 1);
+    glClearColor (1.0, 0.0, 0.0, 1.0);
     glClear (GL_COLOR_BUFFER_BIT);
 
+    glUseProgram(self->m_programId);
+    /*
+    glBindBuffer(GL_ARRAY_BUFFER, self->m_vbo);
+    GLint posAttrib = glGetAttribLocation(self->m_programId, "position");
+    glEnableVertexAttribArray(posAttrib);
+    glVertexAttribPointer(posAttrib, 2, GL_FLOAT, GL_FALSE, 0, 0);
+    */
+    glBindVertexArray (self->m_vao);
+
+    glDrawArrays(GL_TRIANGLES, 0, 3);
+
+    glFlush ();
+
+
+    /*
     // get the current pixelbuffer from the editor
     PixelBuffer *render = image_editor_get_current_pixelbuffer(&(self->m_editor));
 
@@ -79,6 +200,7 @@ void canvas_render(EditorWindow *self, GdkGLContext *context) {
 
     // finally, draw the new array of pixels to the screen
     glDrawPixels(render->width, render->height, GL_RGBA, GL_UNSIGNED_INT, self->m_renderBuffer);
+    */
 }
 
 /* Refreshes this instance's GL canvas (basically triggers the "render" signal) */
@@ -685,9 +807,9 @@ static void editor_window_init (EditorWindow *self) {
     // CANVAS RENDER setup
     //
     self->m_canvasGLArea = GTK_GL_AREA(gtk_builder_get_object(builder, "canvasGLArea"));
+    gtk_gl_area_set_required_version(self->m_canvasGLArea, 3, 2);
     g_signal_connect_swapped(self->m_canvasGLArea, "render", (GCallback)canvas_render, self);
-
-
+    g_signal_connect_swapped(self->m_canvasGLArea, "realize", (GCallback)canvas_realize, self);
 
     // finally, unref the builder
     g_object_unref(builder);
