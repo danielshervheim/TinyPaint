@@ -36,7 +36,7 @@ struct _EditorWindow {
 
     // the temporary buffer used to render the
     // pixelbuffer to the screen via opengl
-    unsigned int *m_renderBuffer;
+    float *m_renderBuffer;
 
     // mouse tracking variables
     int m_mousePosX;
@@ -72,10 +72,16 @@ void canvas_realize(EditorWindow *self, GdkGLContext *context) {
     // Create a VBO to hold our vertices.
     // source: https://open.gl/drawing
 
+    // (X, Y) (U, V)
+    float rad = 1.0f;
     float vertices[] = {
-        0.0f,  0.25f,
-        0.25f, 0.25f,
-        0.25f, 0.0f
+        -rad,  rad, 0.0f, 1.0f,  // Top-left
+         rad,  rad, 1.0f, 1.0f,  // Top-right
+         rad, -rad, 1.0f, 0.0f,  // Bottom-right
+
+         rad, -rad, 1.0f, 0.0f,  // Bottom-right
+        -rad, -rad, 0.0f, 0.0f,  // Bottom-left
+        -rad,  rad, 0.0f, 1.0f,  // Top-left
     };
 
     GLuint vbo;
@@ -86,9 +92,18 @@ void canvas_realize(EditorWindow *self, GdkGLContext *context) {
     // Create the shader program.
     self->m_shader = glCreateProgram();
 
-    // Load and compile the vertex and fragment shaders.
-    int vertShader = load_and_compile_shader("data/shaders/quad.vert", GL_VERTEX_SHADER);
-    int fragShader = load_and_compile_shader("data/shaders/quad.frag", GL_FRAGMENT_SHADER);
+    // Load the shader source code.
+    int len;
+    char* vertSource = load_file("data/shaders/quad.vert", &len);
+    char* fragSource = load_file("data/shaders/quad.frag", &len);
+
+    // Compile the shaders.
+    int vertShader = compile_shader(vertSource, GL_VERTEX_SHADER);
+    int fragShader = compile_shader(fragSource, GL_FRAGMENT_SHADER);
+
+    // Free the loaded source code.
+    free(vertSource);
+    free(fragSource);
 
     // Attach the compiled shaders to the program.
     glAttachShader(self->m_shader, vertShader);
@@ -100,24 +115,44 @@ void canvas_realize(EditorWindow *self, GdkGLContext *context) {
     // Link the shaders.
     glLinkProgram(self->m_shader);
 
-    // Create a reference to the position attribute.
+    // Create a reference to the attributes.
     GLint posAttrib = glGetAttribLocation(self->m_shader, "position");
+    GLint uvAttrib = glGetAttribLocation(self->m_shader, "uv");
 
     // Enable this attribute.
     glEnableVertexAttribArray(posAttrib);
+    glEnableVertexAttribArray(uvAttrib);
 
     // Specify how the values in the current VBO are laid out.
-    glVertexAttribPointer(posAttrib, 2, GL_FLOAT, GL_FALSE, 0, 0);
+    glVertexAttribPointer(posAttrib, 2, GL_FLOAT, GL_FALSE, 4*sizeof(float), 0);
+    glVertexAttribPointer(uvAttrib, 2, GL_FLOAT, GL_FALSE, 4*sizeof(float), 2*sizeof(float));
+
+    // Create texture.
+    GLuint texture;
+    glGenTextures(1, &texture);
+
+    // Bind texture.
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, texture);
+
+    // Set the texture parameters.
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+    // Specify the texture format.
+    PixelBuffer *render = image_editor_get_current_pixelbuffer(&(self->m_editor));
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, render->width, render->height, 0, GL_RGBA, GL_FLOAT, self->m_renderBuffer);
+
+    // Assign the texture to the shader.
+    glUniform1i(glGetUniformLocation(self->m_shader, "uTexture"), 0);
 }
 
 /* Rerenders the gtkGLArea associated with this EditorWindow instance, based on its current pixelbuffer */
 void canvas_render(EditorWindow *self, GdkGLContext *context) {
-
     // Make the context of the canvas current.
     gdk_gl_context_make_current (context);
 
     // Clear the background.
-    glClearColor (1.0, 0.0, 0.0, 1.0);
+    glClearColor (0.0, 0.0, 0.0, 1.0);
     glClear (GL_COLOR_BUFFER_BIT);
 
     // Use the specified program which contains our shaders, created in canvas_realize().
@@ -126,36 +161,30 @@ void canvas_render(EditorWindow *self, GdkGLContext *context) {
     // Use the specified vao which contains the quad vertices, created in canvas_realize().
     glBindVertexArray (self->m_vao);
 
-    glDrawArrays(GL_TRIANGLES, 0, 3);
-
-    glFlush ();
-
-
-    /*
-    // get the current pixelbuffer from the editor
+    // Update the render buffer.
+    // TODO: there has to be a faster way than copying one-by-one...
     PixelBuffer *render = image_editor_get_current_pixelbuffer(&(self->m_editor));
-
-    // update the renderBuffer based on the current PixelBuffer
+    int i = 0;
     for (int y = 0; y < render->height; y++) {
         for (int x = 0; x < render->width; x++) {
-            // OpenGL renders upside down so we must flip the y axis
-            int y_modified = (render->height - 1) - y;
+            int y_flipped = (render->height - 1) - y;
 
-            int offset = (render->width * 4 * y_modified) + (4 * x);
-            int size = (sizeof(unsigned int));
+            GdkRGBA color = pixelbuffer_get_pixel(render, x, y_flipped);
+            self->m_renderBuffer[i+0] = color.red;
+            self->m_renderBuffer[i+1] = color.green;
+            self->m_renderBuffer[i+2] = color.blue;
+            self->m_renderBuffer[i+3] = color.alpha;
 
-            GdkRGBA color = pixelbuffer_get_pixel(render, x, y);
-
-            memset(self->m_renderBuffer + offset + 0, color.red * 255, size);
-            memset(self->m_renderBuffer + offset + 1, color.green * 255, size);
-            memset(self->m_renderBuffer + offset + 2, color.blue * 255, size);
-            memset(self->m_renderBuffer + offset + 3, color.alpha * 255, size);
+            i += 4;
         }
     }
 
-    // finally, draw the new array of pixels to the screen
-    glDrawPixels(render->width, render->height, GL_RGBA, GL_UNSIGNED_INT, self->m_renderBuffer);
-    */
+    // Update the texture pointing to the render buffer data.
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, render->width, render->height, GL_RGBA, GL_FLOAT, self->m_renderBuffer);
+
+    // Draw the fullscreen quad!
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    glFlush ();
 }
 
 /* Refreshes this instance's GL canvas (basically triggers the "render" signal) */
@@ -520,7 +549,7 @@ void editor_window_canvas_init_from_parameters(EditorWindow *self, int width, in
     gtk_widget_set_size_request(GTK_WIDGET(self->m_canvasGLArea), width, height);
 
     // initialize the renderBuffer to be the correct size
-    self->m_renderBuffer = malloc(sizeof(unsigned int) * 4 * width * height);
+    self->m_renderBuffer = malloc(sizeof(float) * 4 * width * height);
 
     image_editor_init_from_parameters(&(self->m_editor), width, height, backgroundColor);
 
@@ -540,7 +569,7 @@ void editor_window_canvas_init_from_file(EditorWindow *self, const char *filepat
     gtk_widget_set_size_request(GTK_WIDGET(self->m_canvasGLArea), width, height);
 
     // initialize the renderBuffer to be the correct size
-    self->m_renderBuffer = malloc(sizeof(unsigned int) * 4 * width * height);
+    self->m_renderBuffer = malloc(sizeof(float) * 4 * width * height);
 
     // refresh the canvas to show the initial pixelbuffer
     canvas_refresh(self);

@@ -178,20 +178,12 @@ int string_ends_with(const char *string, const char *end) {
 
 // Source:
 // http://schabby.de/shader-loading/
-int load_and_compile_shader(char* filename, int shaderType) {
+int compile_shader(char* shaderSource, int shaderType) {
 	// handle will be non-zero if succefully created.
 	int handle = glCreateShader(shaderType);
 
-	// load code from file into string
-    int len;
-	char* code = load_file(filename, &len);
-    if (code == NULL) {
-        // ERROR.
-        return -1;
-    }
-
     // upload code to OpenGL and associate code with shader
-    const GLchar* shader_ptr = code;
+    const GLchar* shader_ptr = shaderSource;
     glShaderSource(handle, 1, &shader_ptr, NULL);
 
 	// compile source code into binary
@@ -209,7 +201,7 @@ int load_and_compile_shader(char* filename, int shaderType) {
         return -1;
 	}
 
-    printf("Loaded and compiled %s\n", filename);
+    printf("Compiled shader.\n");
 	return handle;
 }
 

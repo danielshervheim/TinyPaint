@@ -92,7 +92,7 @@ int string_ends_with(const char *string, const char *end);
 //
 
 /* Loads and compiles the shader at "filename" and returns a GL handle to the shader. */
-int load_and_compile_shader(char* filename, int shaderType);
+int compile_shader(char* shaderSource, int shaderType);
 
 /* Loads the file at "filename" and returns a buffer containing the file contents.
 Also returns the length of the buffer in the "length" parameter. */
