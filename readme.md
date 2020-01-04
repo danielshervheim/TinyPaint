@@ -119,18 +119,15 @@ TinyPaint also depends on the [lodepng](https://lodev.org/lodepng/) library, by 
 <a name="compiling"></a>
 ## Compiling
 
-TinyPaint expects the lodepng library to be in a specific folder. It also uses the Glib Gresource library to compile the icons and ui definitions into linkable source code. Therefore, **the order you run the make targets in is important**!
+TinyPaint expects the lodepng library to be in a specific folder. It also uses the Glib Gresource library to compile the icons and ui definitions into linkable source code. Therefore, the order you run the make targets in is important. You **must** run `make get_dependencies` and `make compile_resources`  before you run `make`!
 
-
-You **must** run `make get_dependencies` and `make compile_resources`  before you run `make`!
-
-```
-$ git clone https://github.com/danielshervheim/TinyPaint.git
-$ cd TinyPaint/core
-$ make get_dependencies
-$ make compile_resources
-$ make
-$ ./build/tinypaint
+```bash
+git clone https://github.com/danielshervheim/TinyPaint.git
+cd TinyPaint/core
+make get_dependencies
+make compile_resources
+make
+./build/tinypaint
 ```
 
-TinyPaint also loads shaders at runtime from the `data/shaders` directory, so you must be in the `core`  directory when you run, otherwise the program won't be able to find the shaders.
+TinyPaint also loads shaders at runtime from the `data/shaders` directory, so you must be in the `core`  directory when you run `./build/tinypaint`, otherwise the program won't be able to find and load the shaders.
