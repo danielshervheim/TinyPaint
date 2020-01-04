@@ -65,8 +65,12 @@
                     <property name="can_focus">False</property>
                     <property name="halign">start</property>
                     <property name="margin_bottom">7</property>
-                    <property name="label" translatable="yes">&lt;b&gt;Copyright © Daniel Shervheim, 2019&lt;/b&gt;</property>
-                    <property name="use_markup">True</property>
+                    <!-- <property name="label" translatable="yes">&lt;b&gt;Copyright © Daniel Shervheim, 2019&lt;/b&gt;</property> -->
+                    <!-- <property name="use_markup">True</property> -->
+                    <property name="label" translatable="yes">Daniel Shervheim</property>
+                    <attributes>
+                      <attribute name="scale" value="1.25"/>
+                    </attributes>
                   </object>
                   <packing>
                     <property name="expand">False</property>
@@ -82,7 +86,7 @@
                       <object class="GtkLabel">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
-                        <property name="label" translatable="yes">My github</property>
+                        <property name="label" translatable="yes">My website</property>
                       </object>
                       <packing>
                         <property name="expand">False</property>
@@ -92,12 +96,12 @@
                     </child>
                     <child>
                       <object class="GtkLinkButton">
-                        <property name="label" translatable="yes">github.com/danielshervheim</property>
+                        <property name="label" translatable="yes">danielshervheim.com</property>
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
                         <property name="receives_default">True</property>
                         <property name="relief">none</property>
-                        <property name="uri">https://www.github.com/danielshervheim</property>
+                        <property name="uri">https://www.danielshervheim.com/</property>
                       </object>
                       <packing>
                         <property name="expand">False</property>
