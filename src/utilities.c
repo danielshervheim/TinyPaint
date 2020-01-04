@@ -243,6 +243,9 @@ char* load_file(char* filename, int* length) {
         }
         fclose(fp);
     }
+    else {
+        printf("ERROR: could not load file %s\n", filename);
+    }
 
     return NULL;
 }
