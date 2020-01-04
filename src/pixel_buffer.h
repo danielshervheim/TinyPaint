@@ -14,6 +14,7 @@ typedef struct pixelbuffer {
     int height;
     GdkRGBA *data;
     GdkRGBA backgroundColor;
+    float *rgbadata;
 } PixelBuffer;
 
 /* Returns a new pixelbuffer of width x height. */

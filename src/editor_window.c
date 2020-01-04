@@ -163,26 +163,9 @@ void canvas_render(EditorWindow *self, GdkGLContext *context) {
     // Use the specified vao which contains the quad vertices, created in canvas_realize().
     glBindVertexArray (self->m_vao);
 
-    // Update the render buffer.
-    // TODO: there has to be a faster way than copying one-by-one...
+    // Update the texture to point to the current image editors pixelbuffer.
     PixelBuffer *render = image_editor_get_current_pixelbuffer(&(self->m_editor));
-    int i = 0;
-    for (int y = 0; y < render->height; y++) {
-        for (int x = 0; x < render->width; x++) {
-            int y_flipped = (render->height - 1) - y;
-
-            GdkRGBA color = pixelbuffer_get_pixel(render, x, y_flipped);
-            self->m_renderBuffer[i+0] = color.red;
-            self->m_renderBuffer[i+1] = color.green;
-            self->m_renderBuffer[i+2] = color.blue;
-            self->m_renderBuffer[i+3] = color.alpha;
-
-            i += 4;
-        }
-    }
-
-    // Update the texture pointing to the render buffer data.
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, render->width, render->height, GL_RGBA, GL_FLOAT, self->m_renderBuffer);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, render->width, render->height, GL_RGBA, GL_FLOAT, render->rgbadata);
 
     // Draw the fullscreen quad!
     glDrawArrays(GL_TRIANGLES, 0, 6);

@@ -13,6 +13,7 @@ PixelBuffer pixelbuffer_new(int width, int height) {
     tmp.width = width;
     tmp.height = height;
     tmp.data = malloc(sizeof(GdkRGBA) * width * height);
+    tmp.rgbadata = malloc(sizeof(float) * 4 * width * height);
     return tmp;
 }
 
@@ -20,6 +21,7 @@ void pixelbuffer_destroy(PixelBuffer *buf) {
     buf->width = -1;
     buf->height = -1;
     free(buf->data);
+    free(buf->rgbadata);
 }
 
 PixelBuffer pixelbuffer_copy(PixelBuffer *original) {
@@ -35,6 +37,10 @@ PixelBuffer pixelbuffer_copy(PixelBuffer *original) {
 
 void pixelbuffer_set_pixel(PixelBuffer *buf, int x, int y, GdkRGBA color) {
     buf->data[y*buf->width+x] = color;
+    buf->rgbadata[y * (4*buf->width) + (x * 4) + 0] = color.red;
+    buf->rgbadata[y * (4*buf->width) + (x * 4) + 1] = color.green;
+    buf->rgbadata[y * (4*buf->width) + (x * 4) + 2] = color.blue;
+    buf->rgbadata[y * (4*buf->width) + (x * 4) + 3] = color.alpha;
 }
 
 GdkRGBA pixelbuffer_get_pixel(PixelBuffer *buf, int x, int y) {
